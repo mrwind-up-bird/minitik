@@ -1,0 +1,203 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ──────────────────────────────────────────────────────────────────
+
+enum Platform {
+  TIKTOK
+  INSTAGRAM
+  YOUTUBE
+}
+
+enum AccountStatus {
+  CONNECTING
+  CONNECTED
+  EXPIRED
+  REVOKED
+  ERROR
+}
+
+enum ContentStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHING
+  PUBLISHED
+  FAILED
+}
+
+enum PublicationStatus {
+  QUEUED
+  PUBLISHING
+  PUBLISHED
+  FAILED
+}
+
+enum SubscriptionTier {
+  FREE
+  PRO
+  BUSINESS
+}
+
+enum JobPriority {
+  LOW
+  NORMAL
+  HIGH
+}
+
+enum JobStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+// ─── Models ─────────────────────────────────────────────────────────────────
+
+model User {
+  id               String           @id @default(cuid())
+  email            String           @unique
+  name             String?
+  image            String?
+  passwordHash     String?
+  subscriptionTier SubscriptionTier @default(FREE)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  accounts Account[]
+  contents Content[]
+  sessions Session[]
+
+  @@index([email])
+  @@map("users")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model Account {
+  id                String        @id @default(cuid())
+  userId            String
+  platform          Platform
+  platformAccountId String
+  platformUsername  String?
+  accessToken       String        // Encrypted AES-256-GCM
+  refreshToken      String?       // Encrypted AES-256-GCM
+  tokenExpiresAt    DateTime?
+  status            AccountStatus @default(CONNECTING)
+  connectedAt       DateTime      @default(now())
+  lastSyncAt        DateTime?
+  metadata          Json?
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  publications Publication[]
+
+  @@unique([userId, platform, platformAccountId])
+  @@index([userId])
+  @@index([platform])
+  @@index([status])
+  @@map("accounts")
+}
+
+model Content {
+  id            String        @id @default(cuid())
+  userId        String
+  title         String
+  description   String?
+  filePath      String?
+  thumbnailPath String?
+  fileSize      BigInt?
+  mimeType      String?
+  duration      Int?          // seconds
+  status        ContentStatus @default(DRAFT)
+  scheduledAt   DateTime?
+  publishedAt   DateTime?
+  metadata      Json?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  publications Publication[]
+  scheduledJobs ScheduledJob[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([scheduledAt])
+  @@index([createdAt])
+  @@map("contents")
+}
+
+model Publication {
+  id             String            @id @default(cuid())
+  contentId      String
+  accountId      String
+  platform       Platform
+  platformPostId String?
+  status         PublicationStatus @default(QUEUED)
+  publishedAt    DateTime?
+  metrics        Json?
+  error          String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  content Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([contentId])
+  @@index([accountId])
+  @@index([platform])
+  @@index([status])
+  @@map("publications")
+}
+
+model ScheduledJob {
+  id          String      @id @default(cuid())
+  contentId   String
+  accountIds  String[]    // Array of account IDs to publish to
+  scheduledAt DateTime
+  timezone    String      @default("UTC")
+  priority    JobPriority @default(NORMAL)
+  status      JobStatus   @default(PENDING)
+  bullJobId   String?     // Reference to BullMQ job ID
+  attempts    Int         @default(0)
+  maxAttempts Int         @default(3)
+  error       String?
+  processedAt DateTime?
+  completedAt DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  content Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([scheduledAt])
+  @@index([contentId])
+  @@map("scheduled_jobs")
+}
+
+model NotificationSubscription {
+  id           String   @id @default(cuid())
+  userId       String
+  endpoint     String   @unique
+  p256dh       String
+  auth         String
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@map("notification_subscriptions")
+}
