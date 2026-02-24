@@ -11,10 +11,12 @@ import {
 } from "../../domain/platform-adapter";
 import { RateLimiter, calculateBackoff, sleep } from "../rate-limiter";
 import { CircuitBreaker } from "../circuit-breaker";
+import { getPresignedDownloadUrl } from "../../../content/infrastructure/s3-storage";
 
 const PLATFORM = Platform.YOUTUBE;
 const MAX_RETRIES = 3;
 const YOUTUBE_API_BASE = "https://www.googleapis.com/youtube/v3";
+const CHUNK_SIZE = 10 * 1024 * 1024; // 10 MB per chunk for resumable upload
 
 // YouTube quota costs per operation (approximate)
 // videos.insert = 1600 units, videos.list = 1 unit, channels.list = 1 unit
@@ -243,14 +245,92 @@ export class YouTubeAdapter implements PlatformAdapter {
       throw new Error("YouTube upload: no resumable upload URL returned");
     }
 
-    // In production, content.filePath would be streamed to uploadUrl.
-    // Here we just verify the session was created successfully.
-    // The actual byte transfer is handled separately (e.g., by the content service).
+    // Step 2: Resolve video file size from S3
+    if (!content.filePath) {
+      throw new Error("No video file path provided");
+    }
+
+    const videoUrl = await getPresignedDownloadUrl(content.filePath);
+    const headRes = await fetch(videoUrl, { method: "HEAD" });
+    const videoSize = parseInt(headRes.headers.get("content-length") ?? "0", 10);
+    if (!videoSize) {
+      throw new Error("Could not determine video file size from S3");
+    }
+
+    const mimeType = content.mimeType ?? "video/mp4";
+    const totalChunks = Math.ceil(videoSize / CHUNK_SIZE);
+
+    console.log(
+      `[YouTubeAdapter] upload: ${videoSize} bytes, ${totalChunks} chunk(s) to resumable URL`
+    );
+
+    // Step 3: Stream video to YouTube in chunks
+    let finalResponse: Response | null = null;
+
+    for (let i = 0; i < totalChunks; i++) {
+      const start = i * CHUNK_SIZE;
+      const end = Math.min(start + CHUNK_SIZE - 1, videoSize - 1);
+      const currentSize = end - start + 1;
+
+      // Download chunk from S3 via byte-range request
+      const s3Res = await fetch(videoUrl, {
+        headers: { Range: `bytes=${start}-${end}` },
+      });
+      const chunkData = await s3Res.arrayBuffer();
+
+      // PUT chunk to YouTube resumable upload URL
+      const uploadRes = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: {
+          "Content-Type": mimeType,
+          "Content-Length": String(currentSize),
+          "Content-Range": `bytes ${start}-${end}/${videoSize}`,
+        },
+        body: chunkData,
+      });
+
+      // 308 Resume Incomplete = chunk accepted, more expected
+      // 200/201 = upload complete, response contains video resource
+      if (uploadRes.status === 200 || uploadRes.status === 201) {
+        finalResponse = uploadRes;
+        break;
+      }
+
+      if (uploadRes.status !== 308) {
+        const errText = await uploadRes.text().catch(() => "");
+        throw new Error(
+          `YouTube chunk upload failed (${i + 1}/${totalChunks}): ${uploadRes.status} ${errText}`
+        );
+      }
+
+      console.log(
+        `[YouTubeAdapter] chunk ${i + 1}/${totalChunks} accepted (${currentSize} bytes)`
+      );
+    }
+
+    if (!finalResponse) {
+      throw new Error("YouTube upload: no final response after all chunks sent");
+    }
+
+    // Step 4: Parse video resource for real video ID
+    const videoResource = (await finalResponse.json()) as {
+      id?: string;
+      snippet?: { publishedAt?: string };
+    };
+
+    const videoId = videoResource.id;
+    if (!videoId) {
+      throw new Error("YouTube upload completed but no video ID in response");
+    }
+
+    console.log(`[YouTubeAdapter] upload complete: videoId=${videoId}`);
 
     return {
       success: true,
-      platformPostId: uploadUrl, // Temporary — real ID comes after upload completes
-      publishedAt: new Date(),
+      platformPostId: videoId,
+      publishedAt: videoResource.snippet?.publishedAt
+        ? new Date(videoResource.snippet.publishedAt)
+        : new Date(),
     };
   }
 }

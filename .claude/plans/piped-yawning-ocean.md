@@ -1,4 +1,4 @@
-# Next Up — Cleanup & Platform Adapter Completion
+# Next Up — YouTube Upload + Test Suite
 
 ## Completed
 - Dashboard stats: real counts for drafts/scheduled/published
@@ -6,93 +6,86 @@
 - Connection wizard: 4-step UI (platform picker, setup guide, OAuth connect, success)
 - OAuth callback route: `/api/accounts/callback/[provider]` handles provider redirects
 - Platform user info: auto-fetches user profile after token exchange
-- Route auth: all 6 route handlers use `getServerSession` (no more fake `x-user-id`)
+- Route auth: all route handlers use `getServerSession` (no more fake `x-user-id`)
+- Deduplicated NextAuth config (deleted `src/app/api/auth/[...nextauth]/route.ts`)
+- TikTok adapter: full video upload (chunked from S3) + real analytics via Display API
+- ffmpeg thumbnail generation: extract frame → upload JPEG to S3
+- `putObject` added to s3-storage for small file uploads
+
+## Adapter Status
+
+| Adapter | publishContent | getAnalytics | Notes |
+|---------|---------------|-------------|-------|
+| TikTok | DONE | DONE | Full chunked upload + poll status |
+| Instagram | DONE | DONE | Two-step Graph API (create container → publish) |
+| YouTube | INCOMPLETE | DONE | Only initiates resumable upload session, never streams video bytes |
+
+Instagram `shares` hardcoded to 0 (Graph API doesn't expose it). YouTube `shares` hardcoded to 0 (API doesn't expose it). Both are platform limitations, not bugs.
 
 ---
 
-## Task 1 — Deduplicate NextAuth Config (LOW)
+## Task 1 — Complete YouTube Video Upload (MEDIUM)
 
 ### Problem
-Two identical NextAuth config files exist:
-- `src/app/api/auth/[...nextauth]/route.ts` — active app router route
-- `src/apps/web/app/api/auth/[...nextauth]/route.ts` — duplicate, but this is the one all route handlers import from
+`src/domains/platforms/infrastructure/adapters/youtube-adapter.ts` line ~246:
+```typescript
+// In production, content.filePath would be streamed to uploadUrl.
+// Here we just verify the session was created successfully.
+// The actual byte transfer is handled separately (e.g., by the content service).
+```
 
-All 6 route handlers import `authOptions` from `@/apps/web/app/api/auth/[...nextauth]/route`. The file at `src/app/api/auth/` is the older duplicate that can be removed.
+The method calls `POST /upload/youtube/v3/videos` to create a resumable upload session and gets an `uploadUrl`, but never streams the video file to it. Returns the upload URL as a temporary `platformPostId`.
 
 ### Fix
-Delete `src/app/api/auth/[...nextauth]/route.ts`. The canonical auth config lives at `src/apps/web/app/api/auth/[...nextauth]/route.ts` and is already correctly referenced everywhere.
+After getting the `uploadUrl` from the init call:
+1. Get a presigned download URL for the video from S3 (same pattern as TikTok adapter)
+2. Stream the video to YouTube's `uploadUrl` via PUT with `Content-Type: video/*`
+3. YouTube responds with the final video resource including the real video ID
+4. Return the real video ID as `platformPostId`
+
+YouTube resumable uploads support single-request upload (PUT entire file) for files under ~5MB, or chunked upload (PUT with `Content-Range`) for larger files. Use chunked for consistency.
 
 ### Files
 | File | Action |
 |------|--------|
-| `src/app/api/auth/[...nextauth]/route.ts` | **Delete** |
+| `src/domains/platforms/infrastructure/adapters/youtube-adapter.ts` | **Modify** — complete `callYouTubeUploadApi` with actual file streaming |
 
 ---
 
-## Task 2 — TikTok Video Upload (MEDIUM)
+## Task 2 — Add Test Suite (HIGH)
 
 ### Problem
-`src/domains/platforms/infrastructure/adapters/tiktok-adapter.ts` line ~179 only calls `/v2/post/publish/video/init/` to initiate an upload but never streams the actual video file. Comments say:
-```
-// Real implementation would:
-// 1. Upload video to TikTok via their upload URL
-// 2. Poll for upload completion
-// 3. Publish with caption/privacy settings
-```
+The project has zero test files. No `.test.ts`, `.spec.ts`, or test framework configured.
 
-### Fix
-Complete the `callTikTokPublishApi` method:
-1. Call init endpoint to get `upload_url`
-2. Stream video file from S3 to TikTok's upload URL
-3. Poll publish status until complete or failed
-4. Return real `platformPostId` from response
+### Scope
+Start with unit tests for the most critical service functions:
 
----
+1. **Account service** (`src/domains/accounts/application/account-service.ts`)
+   - `connectAccount` — token exchange + DB upsert
+   - `initiateOAuthFlow` — generates valid PKCE params
+   - Account limit enforcement
 
-## Task 3 — TikTok Analytics (MEDIUM)
+2. **Scheduling service** (`src/domains/scheduling/application/scheduling-service.ts`)
+   - `schedulePost` — creates job + DB records
+   - `cancelScheduledJob` — cancellation logic
 
-### Problem
-`src/domains/platforms/infrastructure/adapters/tiktok-adapter.ts` line ~93:
-```typescript
-// Stub — replace with real TikTok Research API call
-return { platformPostId, views: 0, likes: 0, comments: 0, shares: 0, fetchedAt: new Date() };
-```
+3. **Platform user info** (`src/domains/accounts/infrastructure/platform-user-info.ts`)
+   - `fetchPlatformUserInfo` — each provider returns correct shape
 
-### Fix
-Implement real TikTok Research API call to fetch video metrics (views, likes, comments, shares) for a given `platformPostId`.
+4. **Video processor** (`src/domains/content/infrastructure/video-processor.ts`)
+   - `validateMimeType`, `validateExtension`, `validateForPlatform` — pure functions, easy to test
 
----
-
-## Task 4 — ffmpeg Thumbnail Generation (LOW)
-
-### Problem
-`src/domains/content/infrastructure/video-processor.ts` line ~212:
-```typescript
-throw new Error("ffmpeg thumbnail generation not yet implemented");
-```
-
-Called from `generateThumbnail()` which has a try/catch wrapper that gracefully returns `{ generated: false }` on failure, so this doesn't crash the app — thumbnails just never generate.
-
-### Fix
-Implement the function:
-1. Get presigned URL for the video from S3
-2. Run `ffmpeg -ss <timestamp> -i <url> -frames:v 1 -q:v 2 output.jpg`
-3. Upload resulting JPEG to the thumbnail S3 key
+### Setup
+- Install vitest (or jest) as dev dependency
+- Add `test` script to `package.json`
+- Create `__tests__/` directories next to source files or a top-level `tests/` directory
 
 ---
 
 ## Backlog
 
-| Item | Notes |
-|------|-------|
-| No test suite | Project has zero tests — no `.test.ts` or `.spec.ts` files |
-| Instagram/YouTube adapter stubs | May have similar incomplete sections (not yet audited in detail) |
-
----
-
-## Verification
-1. `npm run build` — zero errors
-2. After Task 1: auth still works, no broken imports
-3. After Task 2: TikTok publish job uploads real video, returns `platformPostId`
-4. After Task 3: Analytics page shows real TikTok metrics
-5. After Task 4: Uploaded videos get auto-generated thumbnails
+| Item | Priority | Notes |
+|------|----------|-------|
+| Add auth middleware for app routes | LOW | NextAuth JWT handles it, but explicit middleware could protect `/api/*` |
+| Instagram `filePath` must be public URL | LOW | Comment in adapter notes this — may need presigned URL pass-through |
+| Consolidate `.memory/` checkpoint files | LOW | 13 checkpoints today — could prune older ones |
