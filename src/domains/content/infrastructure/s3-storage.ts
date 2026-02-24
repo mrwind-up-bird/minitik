@@ -7,6 +7,7 @@ import {
   DeleteObjectCommand,
   HeadObjectCommand,
   GetObjectCommand,
+  PutObjectCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
@@ -166,4 +167,20 @@ export function buildContentKey(userId: string, contentId: string, filename: str
 
 export function buildThumbnailKey(userId: string, contentId: string): string {
   return `thumbnails/${userId}/${contentId}/thumbnail.jpg`;
+}
+
+export async function putObject(
+  key: string,
+  body: Buffer | Uint8Array,
+  contentType: string
+): Promise<void> {
+  const command = new PutObjectCommand({
+    Bucket: BUCKET,
+    Key: key,
+    Body: body,
+    ContentType: contentType,
+    ServerSideEncryption: "AES256",
+  });
+
+  await s3.send(command);
 }

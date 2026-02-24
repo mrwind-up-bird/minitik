@@ -3,7 +3,12 @@
 // This module provides stubs that integrate with the ffmpeg CLI when available,
 // and falls back to placeholder generation in environments without ffmpeg.
 
-import { buildThumbnailKey, deleteObject } from "./s3-storage";
+import {
+  buildThumbnailKey,
+  deleteObject,
+  getPresignedDownloadUrl,
+  putObject,
+} from "./s3-storage";
 
 export const ALLOWED_MIME_TYPES = ["video/mp4", "video/quicktime", "video/webm"];
 export const ALLOWED_EXTENSIONS = [".mp4", ".mov", ".webm"];
@@ -210,15 +215,36 @@ async function checkFfmpegAvailable(): Promise<boolean> {
 }
 
 async function runFfmpegThumbnail(
-  _videoKey: string,
-  _thumbnailKey: string,
-  _timestampSeconds: number
+  videoKey: string,
+  thumbnailKey: string,
+  timestampSeconds: number
 ): Promise<void> {
-  // Stub: real implementation would:
-  // 1. Get presigned URL for the video
-  // 2. Stream video through ffmpeg: ffmpeg -ss <ts> -i <url> -frames:v 1 -q:v 2 output.jpg
-  // 3. Upload resulting JPEG to thumbnailKey in S3
-  throw new Error("ffmpeg thumbnail generation not yet implemented");
+  const { execFile } = await import("child_process");
+  const { promisify } = await import("util");
+  const { tmpdir } = await import("os");
+  const { join } = await import("path");
+  const { readFile, unlink } = await import("fs/promises");
+  const { randomBytes } = await import("crypto");
+
+  const execFileAsync = promisify(execFile);
+  const videoUrl = await getPresignedDownloadUrl(videoKey);
+  const tmpFile = join(tmpdir(), `minitik-thumb-${randomBytes(8).toString("hex")}.jpg`);
+
+  try {
+    await execFileAsync("ffmpeg", [
+      "-ss", String(timestampSeconds),
+      "-i", videoUrl,
+      "-frames:v", "1",
+      "-q:v", "2",
+      "-y",
+      tmpFile,
+    ], { timeout: 30_000 });
+
+    const buffer = await readFile(tmpFile);
+    await putObject(thumbnailKey, buffer, "image/jpeg");
+  } finally {
+    await unlink(tmpFile).catch(() => {});
+  }
 }
 
 export async function deleteThumbnail(userId: string, contentId: string): Promise<void> {
