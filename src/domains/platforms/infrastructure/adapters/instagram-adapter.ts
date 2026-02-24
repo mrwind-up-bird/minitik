@@ -1,6 +1,7 @@
 import {
   AnalyticsData,
   ContentPayload,
+  DeleteResult,
   HealthStatus,
   Platform,
   PlatformAccount,
@@ -11,6 +12,7 @@ import {
 } from "../../domain/platform-adapter";
 import { RateLimiter, calculateBackoff, sleep } from "../rate-limiter";
 import { CircuitBreaker } from "../circuit-breaker";
+import { getPresignedDownloadUrl } from "../../../content/infrastructure/s3-storage";
 
 const PLATFORM = Platform.INSTAGRAM;
 const MAX_RETRIES = 3;
@@ -149,6 +151,25 @@ export class InstagramAdapter implements PlatformAdapter {
     }
   }
 
+  async deletePost(
+    account: PlatformAccount,
+    platformPostId: string
+  ): Promise<DeleteResult> {
+    try {
+      const url = `${GRAPH_API_BASE}/${platformPostId}?access_token=${encodeURIComponent(account.accessToken)}`;
+      const res = await fetch(url, { method: "DELETE" });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        return { success: false, error: `Instagram delete ${res.status}: ${JSON.stringify(body)}` };
+      }
+
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : String(err) };
+    }
+  }
+
   async getRateLimitStatus(): Promise<RateLimitStatus> {
     return this.rateLimiter.getStatus(PLATFORM, "global");
   }
@@ -188,6 +209,13 @@ export class InstagramAdapter implements PlatformAdapter {
     content: ContentPayload
   ): Promise<PublishResult> {
     // Instagram Graph API — two-step Reels/video publish:
+    if (!content.filePath) {
+      throw new Error("No video file path provided");
+    }
+
+    // Generate a public presigned URL from the S3 key — Instagram must be able to fetch it
+    const videoUrl = await getPresignedDownloadUrl(content.filePath);
+
     // Step 1: Create media container
     const containerUrl = `${GRAPH_API_BASE}/${account.platformAccountId}/media`;
     const containerRes = await fetch(containerUrl, {
@@ -195,7 +223,7 @@ export class InstagramAdapter implements PlatformAdapter {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         media_type: "REELS",
-        video_url: content.filePath, // Must be a public URL in production
+        video_url: videoUrl,
         caption: `${content.title}\n\n${content.description ?? ""}`.trim(),
         access_token: account.accessToken,
       }),

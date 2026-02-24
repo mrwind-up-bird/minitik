@@ -1,6 +1,7 @@
 import {
   AnalyticsData,
   ContentPayload,
+  DeleteResult,
   HealthStatus,
   Platform,
   PlatformAccount,
@@ -161,6 +162,34 @@ export class TikTokAdapter implements PlatformAdapter {
         valid: false,
         error: err instanceof Error ? err.message : "Network error validating TikTok account",
       };
+    }
+  }
+
+  async deletePost(
+    account: PlatformAccount,
+    platformPostId: string
+  ): Promise<DeleteResult> {
+    try {
+      const res = await fetch(
+        "https://open.tiktokapis.com/v2/post/delete/",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${account.accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ publish_id: platformPostId }),
+        }
+      );
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        return { success: false, error: `TikTok delete ${res.status}: ${JSON.stringify(body)}` };
+      }
+
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : String(err) };
     }
   }
 

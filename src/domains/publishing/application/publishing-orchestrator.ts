@@ -317,10 +317,25 @@ export async function rollbackPublishing(
         const accessToken = await getValidAccessToken(account.id);
         if (!accessToken) throw new Error("No valid access token");
 
-        // Platform-specific delete: adapters do not expose delete yet, so we
-        // mark as rolled back in DB and emit event. A delete API call would go here.
-        // e.g. await platformService.deletePost(platformAccount, pub.platformPostId);
-        rolledBack.push(pub.platformPostId);
+        const platformAccount: PlatformAccount = {
+          id: account.id,
+          userId: account.userId,
+          platform: account.platform as unknown as import("@/domains/platforms/domain/platform-adapter").Platform,
+          platformAccountId: account.platformAccountId,
+          platformUsername: account.platformUsername,
+          accessToken,
+          refreshToken: account.refreshToken ? safeDecrypt(account.refreshToken) : null,
+          tokenExpiresAt: account.tokenExpiresAt,
+          metadata: account.metadata as Record<string, unknown> | null,
+        };
+
+        const deleteResult = await platformService.deletePost(platformAccount, pub.platformPostId);
+        if (deleteResult.success) {
+          rolledBack.push(pub.platformPostId);
+        } else {
+          console.warn(`[Rollback] Delete failed for ${pub.platformPostId}: ${deleteResult.error}`);
+          failed.push(pub.platformPostId);
+        }
       } catch {
         failed.push(pub.platformPostId);
       }

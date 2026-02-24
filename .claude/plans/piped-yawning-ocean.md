@@ -1,4 +1,4 @@
-# Next Up — YouTube Upload + Test Suite
+# Next Up — Instagram Fix + Platform Delete + Security Hardening
 
 ## Completed
 - Dashboard stats: real counts for drafts/scheduled/published
@@ -9,76 +9,96 @@
 - Route auth: all route handlers use `getServerSession` (no more fake `x-user-id`)
 - Deduplicated NextAuth config (deleted `src/app/api/auth/[...nextauth]/route.ts`)
 - TikTok adapter: full video upload (chunked from S3) + real analytics via Display API
+- YouTube adapter: full resumable chunked upload from S3 + real analytics
 - ffmpeg thumbnail generation: extract frame → upload JPEG to S3
 - `putObject` added to s3-storage for small file uploads
+- Test suite: vitest with 66 tests across 5 files (video-processor, platform-user-info, oauth-providers, account-service, scheduling-service)
 
 ## Adapter Status
 
 | Adapter | publishContent | getAnalytics | Notes |
 |---------|---------------|-------------|-------|
 | TikTok | DONE | DONE | Full chunked upload + poll status |
-| Instagram | DONE | DONE | Two-step Graph API (create container → publish) |
-| YouTube | INCOMPLETE | DONE | Only initiates resumable upload session, never streams video bytes |
+| Instagram | BUG | DONE | `video_url` receives S3 key instead of public URL |
+| YouTube | DONE | DONE | Resumable chunked upload, returns real video ID |
 
 Instagram `shares` hardcoded to 0 (Graph API doesn't expose it). YouTube `shares` hardcoded to 0 (API doesn't expose it). Both are platform limitations, not bugs.
 
 ---
 
-## Task 1 — Complete YouTube Video Upload (MEDIUM)
+## Task 1 — Fix Instagram Video URL (CRITICAL)
 
 ### Problem
-`src/domains/platforms/infrastructure/adapters/youtube-adapter.ts` line ~246:
+`src/domains/platforms/infrastructure/adapters/instagram-adapter.ts` line 198:
 ```typescript
-// In production, content.filePath would be streamed to uploadUrl.
-// Here we just verify the session was created successfully.
-// The actual byte transfer is handled separately (e.g., by the content service).
+video_url: content.filePath, // Must be a public URL in production
 ```
 
-The method calls `POST /upload/youtube/v3/videos` to create a resumable upload session and gets an `uploadUrl`, but never streams the video file to it. Returns the upload URL as a temporary `platformPostId`.
+Instagram's Graph API requires `video_url` to be a publicly accessible URL. Currently `content.filePath` is an S3 object key (e.g. `content/user-1/abc/video.mp4`), not a URL. Publishing to Instagram will fail.
 
 ### Fix
-After getting the `uploadUrl` from the init call:
-1. Get a presigned download URL for the video from S3 (same pattern as TikTok adapter)
-2. Stream the video to YouTube's `uploadUrl` via PUT with `Content-Type: video/*`
-3. YouTube responds with the final video resource including the real video ID
-4. Return the real video ID as `platformPostId`
-
-YouTube resumable uploads support single-request upload (PUT entire file) for files under ~5MB, or chunked upload (PUT with `Content-Range`) for larger files. Use chunked for consistency.
+Same pattern as TikTok/YouTube adapters:
+1. Import `getPresignedDownloadUrl` from `s3-storage`
+2. Generate a presigned URL from the S3 key before passing to the Graph API
+3. Presigned URLs are valid for 1 hour (default), which is enough for Instagram to fetch the video
 
 ### Files
 | File | Action |
 |------|--------|
-| `src/domains/platforms/infrastructure/adapters/youtube-adapter.ts` | **Modify** — complete `callYouTubeUploadApi` with actual file streaming |
+| `src/domains/platforms/infrastructure/adapters/instagram-adapter.ts` | **Modify** — replace `content.filePath` with presigned S3 URL |
 
 ---
 
-## Task 2 — Add Test Suite (HIGH)
+## Task 2 — Add Platform Delete Methods (MEDIUM)
 
 ### Problem
-The project has zero test files. No `.test.ts`, `.spec.ts`, or test framework configured.
+`src/domains/publishing/application/publishing-orchestrator.ts` lines 320-322:
+```typescript
+// Platform-specific delete: adapters do not expose delete yet, so we
+// mark as rolled back in DB and emit event. A delete API call would go here.
+// e.g. await platformService.deletePost(platformAccount, pub.platformPostId);
+```
 
-### Scope
-Start with unit tests for the most critical service functions:
+The rollback feature (5-minute window after publish) only updates DB records — it never actually deletes the post from the platform. The `PlatformAdapter` interface doesn't include a `deletePost` method.
 
-1. **Account service** (`src/domains/accounts/application/account-service.ts`)
-   - `connectAccount` — token exchange + DB upsert
-   - `initiateOAuthFlow` — generates valid PKCE params
-   - Account limit enforcement
+### Fix
+1. Add `deletePost(account, platformPostId)` to the `PlatformAdapter` interface in `platform-adapter.ts`
+2. Implement in each adapter:
+   - **TikTok**: `POST /v2/post/delete/` with `publish_id`
+   - **Instagram**: `DELETE /{media-id}` via Graph API
+   - **YouTube**: `DELETE /youtube/v3/videos?id={videoId}`
+3. Wire it into the rollback logic in `publishing-orchestrator.ts`
 
-2. **Scheduling service** (`src/domains/scheduling/application/scheduling-service.ts`)
-   - `schedulePost` — creates job + DB records
-   - `cancelScheduledJob` — cancellation logic
+### Files
+| File | Action |
+|------|--------|
+| `src/domains/platforms/domain/platform-adapter.ts` | **Modify** — add `deletePost` to interface |
+| `src/domains/platforms/infrastructure/adapters/tiktok-adapter.ts` | **Modify** — implement `deletePost` |
+| `src/domains/platforms/infrastructure/adapters/instagram-adapter.ts` | **Modify** — implement `deletePost` |
+| `src/domains/platforms/infrastructure/adapters/youtube-adapter.ts` | **Modify** — implement `deletePost` |
+| `src/domains/publishing/application/publishing-orchestrator.ts` | **Modify** — call adapter delete in rollback |
 
-3. **Platform user info** (`src/domains/accounts/infrastructure/platform-user-info.ts`)
-   - `fetchPlatformUserInfo` — each provider returns correct shape
+---
 
-4. **Video processor** (`src/domains/content/infrastructure/video-processor.ts`)
-   - `validateMimeType`, `validateExtension`, `validateForPlatform` — pure functions, easy to test
+## Task 3 — Add Admin Check to Queue Stats (HIGH)
 
-### Setup
-- Install vitest (or jest) as dev dependency
-- Add `test` script to `package.json`
-- Create `__tests__/` directories next to source files or a top-level `tests/` directory
+### Problem
+`src/apps/api/routes/scheduling.ts` line 169:
+```typescript
+// In production: restrict to admin roles. Currently any authenticated user can view aggregate stats
+```
+
+The queue statistics endpoint (`GET /api/scheduling/stats`) returns aggregate job metrics across all users. Any authenticated user can access it — no role check.
+
+### Fix
+1. Check user role from session (add `role` field to JWT callback if not already present)
+2. Return 403 if user is not an admin
+3. Consider adding a simple `isAdmin` flag on the User model or a roles table
+
+### Files
+| File | Action |
+|------|--------|
+| `src/apps/api/routes/scheduling.ts` | **Modify** — add admin role check |
 
 ---
 
@@ -86,6 +106,7 @@ Start with unit tests for the most critical service functions:
 
 | Item | Priority | Notes |
 |------|----------|-------|
+| Replace SHA-256 password hash with bcrypt | MEDIUM | `src/apps/web/app/api/auth/[...nextauth]/route.ts` line 10 — SHA-256 is not suitable for passwords |
+| Surface content optimization warnings | LOW | Publishing orchestrator computes warnings (truncated titles, reduced hashtags) but doesn't return them to the user |
 | Add auth middleware for app routes | LOW | NextAuth JWT handles it, but explicit middleware could protect `/api/*` |
-| Instagram `filePath` must be public URL | LOW | Comment in adapter notes this — may need presigned URL pass-through |
-| Consolidate `.memory/` checkpoint files | LOW | 13 checkpoints today — could prune older ones |
+| Expand test coverage | LOW | Add tests for publishing-orchestrator, analytics-service, platform adapters |

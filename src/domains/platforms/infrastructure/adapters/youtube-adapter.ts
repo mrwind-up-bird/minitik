@@ -1,6 +1,7 @@
 import {
   AnalyticsData,
   ContentPayload,
+  DeleteResult,
   HealthStatus,
   Platform,
   PlatformAccount,
@@ -167,6 +168,31 @@ export class YouTubeAdapter implements PlatformAdapter {
         valid: false,
         error: err instanceof Error ? err.message : "Network error validating YouTube account",
       };
+    }
+  }
+
+  async deletePost(
+    account: PlatformAccount,
+    platformPostId: string
+  ): Promise<DeleteResult> {
+    try {
+      const params = new URLSearchParams({
+        id: platformPostId,
+        access_token: account.accessToken,
+      });
+      const res = await fetch(`${YOUTUBE_API_BASE}/videos?${params}`, {
+        method: "DELETE",
+      });
+
+      // YouTube returns 204 No Content on success
+      if (!res.ok && res.status !== 204) {
+        const body = await res.json().catch(() => ({}));
+        return { success: false, error: `YouTube delete ${res.status}: ${JSON.stringify(body)}` };
+      }
+
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : String(err) };
     }
   }
 

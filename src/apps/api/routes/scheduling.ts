@@ -27,6 +27,14 @@ async function getUserId(): Promise<string | null> {
   return (session?.user as { id?: string } | undefined)?.id ?? null;
 }
 
+async function isAdmin(): Promise<boolean> {
+  const session = await getServerSession(authOptions);
+  const email = session?.user?.email;
+  if (!email) return false;
+  const adminEmails = (process.env.ADMIN_EMAILS ?? "").split(",").map((e) => e.trim()).filter(Boolean);
+  return adminEmails.includes(email);
+}
+
 // ─── POST /api/scheduling/schedule ───────────────────────────────────────────
 
 export async function scheduleHandler(req: NextRequest) {
@@ -166,8 +174,10 @@ export async function queueStatsHandler(req: NextRequest) {
   const userId = await getUserId();
   if (!userId) return jsonError("Unauthorized", 401);
 
-  // In production: restrict to admin roles. Currently any authenticated user
-  // can view aggregate stats (no per-user data exposed).
+  if (!(await isAdmin())) {
+    return jsonError("Forbidden: admin access required", 403);
+  }
+
   try {
     const metrics = await getAllQueueMetrics();
     return NextResponse.json(metrics);

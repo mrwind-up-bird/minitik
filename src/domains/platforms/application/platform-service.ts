@@ -2,6 +2,7 @@ import {
   AnalyticsData,
   CircuitBreakerState,
   ContentPayload,
+  DeleteResult,
   HealthStatus,
   Platform,
   PlatformAccount,
@@ -47,6 +48,16 @@ export class PlatformService {
   ): Promise<PublishResult> {
     const adapter = this.getAdapter(account.platform);
     return adapter.publishContent(account, content);
+  }
+
+  // ─── Delete ─────────────────────────────────────────────────────────────
+
+  async deletePost(
+    account: PlatformAccount,
+    platformPostId: string
+  ): Promise<DeleteResult> {
+    const adapter = this.getAdapter(account.platform);
+    return adapter.deletePost(account, platformPostId);
   }
 
   // ─── Analytics ────────────────────────────────────────────────────────────

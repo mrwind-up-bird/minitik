@@ -40,6 +40,11 @@ export interface PublishResult {
   rateLimitHit?: boolean;
 }
 
+export interface DeleteResult {
+  success: boolean;
+  error?: string;
+}
+
 export interface AnalyticsData {
   platformPostId: string;
   views: number;
@@ -91,6 +96,11 @@ export interface PlatformAdapter {
     account: PlatformAccount,
     content: ContentPayload
   ): Promise<PublishResult>;
+
+  deletePost(
+    account: PlatformAccount,
+    platformPostId: string
+  ): Promise<DeleteResult>;
 
   getAnalytics(
     account: PlatformAccount,
