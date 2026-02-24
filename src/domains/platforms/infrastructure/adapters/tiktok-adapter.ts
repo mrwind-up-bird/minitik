@@ -11,9 +11,12 @@ import {
 } from "../../domain/platform-adapter";
 import { RateLimiter, calculateBackoff, sleep } from "../rate-limiter";
 import { CircuitBreaker } from "../circuit-breaker";
+import { getPresignedDownloadUrl } from "../../../content/infrastructure/s3-storage";
 
 const PLATFORM = Platform.TIKTOK;
 const MAX_RETRIES = 3;
+const CHUNK_SIZE = 10 * 1024 * 1024; // 10 MB (TikTok: min 5 MB, max 64 MB)
+const MAX_STATUS_POLLS = 30;
 
 export class TikTokAdapter implements PlatformAdapter {
   readonly platform = PLATFORM;
@@ -172,16 +175,38 @@ export class TikTokAdapter implements PlatformAdapter {
 
   // ─── Private API helpers ────────────────────────────────────────────────────
 
+  /**
+   * Full TikTok Content Posting API flow:
+   * 1. Get video file size from S3
+   * 2. POST /v2/post/publish/video/init/ → get upload_url + publish_id
+   * 3. PUT video chunks to upload_url with Content-Range headers
+   * 4. Poll /v2/post/publish/status/fetch/ until terminal state
+   */
   private async callTikTokPublishApi(
     account: PlatformAccount,
     content: ContentPayload
   ): Promise<PublishResult> {
-    // TikTok Content Posting API (stub)
-    // Real implementation would:
-    // 1. Upload video to TikTok via their upload URL
-    // 2. Poll for upload completion
-    // 3. Publish with caption/privacy settings
-    const response = await fetch(
+    if (!content.filePath) {
+      throw new Error("No video file path provided");
+    }
+
+    // Step 1: Resolve video file size
+    const videoUrl = await getPresignedDownloadUrl(content.filePath);
+    const headRes = await fetch(videoUrl, { method: "HEAD" });
+    const videoSize = parseInt(headRes.headers.get("content-length") ?? "0", 10);
+    if (!videoSize) {
+      throw new Error("Could not determine video file size from S3");
+    }
+
+    const chunkSize = Math.min(CHUNK_SIZE, videoSize);
+    const totalChunkCount = Math.ceil(videoSize / chunkSize);
+
+    console.log(
+      `[TikTokAdapter] publish init: ${videoSize} bytes, ${totalChunkCount} chunks of ${chunkSize}`
+    );
+
+    // Step 2: Initialize upload
+    const initRes = await fetch(
       "https://open.tiktokapis.com/v2/post/publish/video/init/",
       {
         method: "POST",
@@ -200,21 +225,135 @@ export class TikTokAdapter implements PlatformAdapter {
           },
           source_info: {
             source: "FILE_UPLOAD",
+            video_size: videoSize,
+            chunk_size: chunkSize,
+            total_chunk_count: totalChunkCount,
           },
         }),
       }
     );
 
-    if (!response.ok) {
-      const body = await response.json().catch(() => ({})) as Record<string, unknown>;
-      throw new Error(`TikTok API ${response.status}: ${JSON.stringify(body)}`);
+    if (!initRes.ok) {
+      const body = await initRes.json().catch(() => ({}));
+      throw new Error(`TikTok init ${initRes.status}: ${JSON.stringify(body)}`);
     }
 
-    const data = await response.json() as Record<string, unknown>;
+    const initData = (await initRes.json()) as {
+      data?: { publish_id?: string; upload_url?: string };
+    };
+    const publishId = initData.data?.publish_id;
+    const uploadUrl = initData.data?.upload_url;
+
+    if (!publishId || !uploadUrl) {
+      throw new Error("TikTok init response missing publish_id or upload_url");
+    }
+
+    // Step 3: Upload video chunks sequentially
+    const mimeType = content.mimeType ?? "video/mp4";
+
+    for (let i = 0; i < totalChunkCount; i++) {
+      const start = i * chunkSize;
+      const end = Math.min(start + chunkSize - 1, videoSize - 1);
+      const currentSize = end - start + 1;
+
+      // Download chunk from S3 via byte-range request
+      const s3Res = await fetch(videoUrl, {
+        headers: { Range: `bytes=${start}-${end}` },
+      });
+      const chunkData = await s3Res.arrayBuffer();
+
+      // PUT chunk to TikTok (no Authorization header on presigned upload URL)
+      const uploadRes = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: {
+          "Content-Type": mimeType,
+          "Content-Length": String(currentSize),
+          "Content-Range": `bytes ${start}-${end}/${videoSize}`,
+        },
+        body: chunkData,
+      });
+
+      // 201 = all chunks received, 206 = chunk accepted (more expected)
+      if (uploadRes.status !== 201 && uploadRes.status !== 206) {
+        const errText = await uploadRes.text().catch(() => "");
+        throw new Error(
+          `TikTok chunk upload failed (${i + 1}/${totalChunkCount}): ${uploadRes.status} ${errText}`
+        );
+      }
+
+      console.log(
+        `[TikTokAdapter] chunk ${i + 1}/${totalChunkCount} uploaded (${currentSize} bytes)`
+      );
+    }
+
+    // Step 4: Poll publish status until terminal state
+    const postId = await this.pollPublishStatus(account.accessToken, publishId);
+
     return {
       success: true,
-      platformPostId: (data as { data?: { publish_id?: string } })?.data?.publish_id,
+      platformPostId: postId ?? publishId,
       publishedAt: new Date(),
     };
+  }
+
+  /**
+   * Poll TikTok publish status with exponential backoff.
+   * Returns the public post ID on success, or undefined if still processing
+   * after max polls (the publish_id can still be used as a reference).
+   */
+  private async pollPublishStatus(
+    accessToken: string,
+    publishId: string
+  ): Promise<string | undefined> {
+    const BASE_DELAY_MS = 2000;
+
+    for (let i = 0; i < MAX_STATUS_POLLS; i++) {
+      const delay = Math.min(BASE_DELAY_MS * Math.pow(1.5, i), 30_000);
+      await sleep(delay);
+
+      const res = await fetch(
+        "https://open.tiktokapis.com/v2/post/publish/status/fetch/",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json; charset=UTF-8",
+          },
+          body: JSON.stringify({ publish_id: publishId }),
+        }
+      );
+
+      if (!res.ok) continue;
+
+      const data = (await res.json()) as {
+        data?: {
+          status?: string;
+          fail_reason?: string;
+          publicaly_available_post_id?: (string | number)[];
+        };
+      };
+      const status = data.data?.status;
+
+      if (status === "PUBLISH_COMPLETE") {
+        const postIds = data.data?.publicaly_available_post_id;
+        console.log(`[TikTokAdapter] publish complete: ${publishId}`);
+        return Array.isArray(postIds) && postIds.length > 0
+          ? String(postIds[0])
+          : undefined;
+      }
+
+      if (status === "FAILED") {
+        throw new Error(
+          `TikTok publish failed: ${data.data?.fail_reason ?? "unknown reason"}`
+        );
+      }
+
+      // PROCESSING_UPLOAD / PROCESSING_DOWNLOAD — keep polling
+    }
+
+    console.warn(
+      `[TikTokAdapter] publish status still processing after ${MAX_STATUS_POLLS} polls: ${publishId}`
+    );
+    return undefined;
   }
 }
