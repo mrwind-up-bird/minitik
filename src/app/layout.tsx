@@ -42,7 +42,20 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
-        <Providers>{children}</Providers>
+        <Providers>
+          {children}
+          <footer className="w-full py-4 text-center text-xs text-neutral-400 dark:text-neutral-500">
+            &copy; 2026 built by{" "}
+            <a
+              href="https://nyxcore.vercel.app/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-2 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
+            >
+              nyxCore
+            </a>
+          </footer>
+        </Providers>
       </body>
     </html>
   );
