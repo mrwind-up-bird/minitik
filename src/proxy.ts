@@ -32,7 +32,7 @@ function shouldInjectUserId(pathname: string): boolean {
   return INJECT_HEADER_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (isPublic(pathname)) {
