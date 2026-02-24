@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/apps/web/app/api/auth/[...nextauth]/route";
 import type { TimeRange } from "../../../domains/analytics/infrastructure/analytics-repository";
 import type { ExportFormat } from "../../../domains/analytics/infrastructure/analytics-exporter";
 import {
@@ -14,8 +16,9 @@ function jsonError(message: string, status: number) {
   return NextResponse.json({ error: message }, { status });
 }
 
-function getUserId(req: NextRequest): string | null {
-  return req.headers.get("x-user-id");
+async function getUserId(): Promise<string | null> {
+  const session = await getServerSession(authOptions);
+  return (session?.user as { id?: string } | undefined)?.id ?? null;
 }
 
 const VALID_TIME_RANGES: TimeRange[] = ["7d", "14d", "30d", "90d", "365d"];
@@ -40,7 +43,7 @@ function parsePlatforms(value: string | null): string[] | undefined {
 // Query params: timeRange (7d|14d|30d|90d|365d), platforms (comma-separated)
 
 export async function dashboardHandler(req: NextRequest) {
-  const userId = getUserId(req);
+  const userId = await getUserId();
   if (!userId) return jsonError("Unauthorized", 401);
 
   const { searchParams } = new URL(req.url);
@@ -62,7 +65,7 @@ export async function contentMetricsHandler(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const userId = getUserId(req);
+  const userId = await getUserId();
   if (!userId) return jsonError("Unauthorized", 401);
 
   const { id: contentId } = params;
@@ -84,7 +87,7 @@ export async function contentMetricsHandler(
 // ─── POST /api/analytics/export ──────────────────────────────────────────────
 
 export async function exportHandler(req: NextRequest) {
-  const userId = getUserId(req);
+  const userId = await getUserId();
   if (!userId) return jsonError("Unauthorized", 401);
 
   let body: unknown;
@@ -121,7 +124,7 @@ export async function exportHandler(req: NextRequest) {
 // ─── POST /api/analytics/refresh ─────────────────────────────────────────────
 
 export async function refreshHandler(req: NextRequest) {
-  const userId = getUserId(req);
+  const userId = await getUserId();
   if (!userId) return jsonError("Unauthorized", 401);
 
   try {

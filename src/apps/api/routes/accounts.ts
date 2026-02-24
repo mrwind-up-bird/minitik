@@ -117,8 +117,6 @@ export async function handleConnectAccount(req: NextRequest): Promise<NextRespon
   if (!code || typeof code !== "string") return errorResponse("Missing code", 400);
   if (!codeVerifier || typeof codeVerifier !== "string")
     return errorResponse("Missing codeVerifier", 400);
-  if (!platformAccountId || typeof platformAccountId !== "string")
-    return errorResponse("Missing platformAccountId", 400);
 
   try {
     const account = await connectAccount({
@@ -126,7 +124,7 @@ export async function handleConnectAccount(req: NextRequest): Promise<NextRespon
       provider: provider as OAuthProvider,
       code,
       codeVerifier,
-      platformAccountId,
+      platformAccountId: typeof platformAccountId === "string" ? platformAccountId : undefined,
       platformUsername: typeof platformUsername === "string" ? platformUsername : undefined,
     });
     return NextResponse.json({ account }, { status: 201 });

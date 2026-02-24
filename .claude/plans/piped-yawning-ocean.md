@@ -1,84 +1,115 @@
-# Social Media Account Connection Wizard
+# Next Up — OAuth Callback + Auth Consistency
 
-## Context
+## Status: Connection Wizard done, OAuth flow broken end-to-end
 
-The `/accounts` page has a flat `AccountConnection` component with connect/disconnect/refresh buttons. The OAuth PKCE infrastructure is fully working (initiate, token exchange, encryption, refresh, platform adapters). Users get no guidance on setting up developer apps before connecting. We need a step-by-step wizard that wraps the existing OAuth flow with platform-specific setup instructions.
-
----
-
-## Wizard Flow
-
-1. **Step 1 — Choose Platform**: Cards for TikTok, Instagram, YouTube with branding. Shows already-connected badges. Disabled if 5-account limit reached.
-2. **Step 2 — Setup Guide**: Platform-specific numbered instructions (create developer app, enable APIs, configure redirect URI, get credentials). Links to developer portals. Required scopes listed.
-3. **Step 3 — Connect**: Summary + "Connect to {Platform}" button. Calls existing `POST /api/accounts/initiate`, stores PKCE params + `wizard_active` in sessionStorage, redirects to provider.
-4. **Step 4 — Success**: Checkmark, connected account details, "Connect Another" or "Done" buttons.
-
-OAuth return: On redirect back to `/accounts`, page detects `wizard_active` in sessionStorage and renders wizard at step 4 after re-fetching accounts.
+The wizard UI is complete (8 files, 4-step flow) but OAuth cannot finish — the callback route doesn't exist. Also, 3 out of 5 route handlers use a fake `x-user-id` header instead of real session auth.
 
 ---
 
-## Files to Create (8)
+## Task 1 — OAuth Callback Route (CRITICAL)
 
-### `src/apps/web/components/account/wizard/platform-config.ts`
-Shared constants: `PLATFORM_LABELS`, `PLATFORM_COLORS`, `PROVIDER_TO_PLATFORM`, `OAuthProvider` type.
+### Problem
+OAuth providers redirect to `/api/accounts/callback/{provider}?code=X&state=Y` after user authorizes. That route doesn't exist — **404**.
 
-### `src/apps/web/components/account/wizard/step-indicator.tsx`
-Horizontal step progress: 4 circles connected by lines. Violet for completed/current, neutral for future. Responsive (hides labels on mobile).
+Configured in `src/domains/accounts/infrastructure/oauth-providers.ts` lines 51, 61, 74:
+```
+${baseUrl}/api/accounts/callback/tiktok
+${baseUrl}/api/accounts/callback/instagram
+${baseUrl}/api/accounts/callback/youtube
+```
 
-### `src/apps/web/components/account/wizard/platform-picker.tsx`
-Step 1. Three cards in `grid-cols-1 sm:grid-cols-3`. Platform icon + name + description. Green "Connected" badge if already linked. Clickable unless at 5-account limit.
+### What Exists
+- `initiateOAuthFlow()` in `src/domains/accounts/application/account-service.ts` — generates PKCE params + auth URL
+- `connectAccount()` in same file — exchanges code for tokens, encrypts, saves to DB
+- `handleConnectAccount()` in `src/apps/api/routes/accounts.ts` — expects `{ provider, code, codeVerifier, platformAccountId, platformUsername }` in POST body
 
-### `src/apps/web/components/account/wizard/platform-setup-guide.tsx`
-Step 2. Contains `SETUP_GUIDES` constant with per-platform content:
+### Fix — Create `/api/accounts/callback/[provider]/route.ts`
 
-- **TikTok** (developers.tiktok.com): Create app, enable Login Kit + Content Posting API, add redirect URI, copy Client Key. Scopes: `user.info.basic`, `video.list`, `video.upload`.
-- **Instagram** (developers.facebook.com): Create Consumer app, add Instagram Basic Display, configure redirect, copy App ID/Secret. Scopes: `user_profile`, `user_media`.
-- **YouTube** (console.cloud.google.com): Create project, enable YouTube Data API v3, create OAuth credentials, configure consent screen. Scopes: `youtube.upload`, `youtube.readonly`.
+Server-side GET handler that:
+1. Reads `code` and `state` from query params
+2. Validates `provider` param is `tiktok | instagram | youtube`
+3. Since PKCE `codeVerifier` is stored client-side (sessionStorage), this route can't exchange the code server-side directly
 
-Each step rendered as numbered list with circles. Code blocks for redirect URIs (with copy button). Tips in amber callout. "Back" and "I've completed setup, continue" buttons.
+**Two approaches:**
+- **Option A (simpler)**: Redirect to `/accounts?code={code}&state={state}` — let the client-side page extract params, retrieve `codeVerifier` from sessionStorage, POST to `/api/accounts` to complete the exchange
+- **Option B (server-side)**: Store `codeVerifier` in an encrypted httpOnly cookie during initiate, read it back in callback, exchange server-side, redirect to `/accounts` with success flag
 
-### `src/apps/web/components/account/wizard/use-oauth-connect.ts`
-Shared hook extracting OAuth initiation logic from `AccountConnection`. Returns `{ connecting, error, initiateConnect }`. Stores PKCE params + optional `wizard_active`/`wizard_provider` in sessionStorage before redirect.
+Option A is simpler and matches the existing sessionStorage-based PKCE pattern.
 
-### `src/apps/web/components/account/wizard/oauth-connect-step.tsx`
-Step 3. Summary card with platform name. "You'll be redirected to {platform}" message. "Connect to {Platform}" button using `useOAuthConnect` hook. Loading/error states.
-
-### `src/apps/web/components/account/wizard/connection-success.tsx`
-Step 4. Green checkmark icon, "Account Connected!" heading, platform badge, username if available. "Connect Another Account" and "Done" buttons.
-
-### `src/apps/web/components/account/connection-wizard.tsx`
-Main orchestrator. Manages `step` and `selectedProvider` state. Renders `WizardStepIndicator` + current step component. Handles step transitions. Props: `connectedPlatforms`, `accountCount`, `onComplete`, `onCancel`.
-
----
-
-## File to Modify (1)
-
-### `src/app/(app)/accounts/page.tsx`
-- Add `view` state: `"list" | "wizard"`
-- On mount, check `sessionStorage.getItem("wizard_active")` — if present, set view to `"wizard"`
-- In list view: existing `AccountConnection` + "Connect New Account" button (violet, top-right)
-- In wizard view: `<ConnectionWizard>` with `onComplete` (refetch + switch to list) and `onCancel` (switch to list)
-- Hide connect button if account limit reached
+### Files
+| File | Action |
+|------|--------|
+| `src/app/api/accounts/callback/[provider]/route.ts` | **Create** — GET handler, validate provider, redirect to `/accounts?code=&state=` |
+| `src/app/(app)/accounts/page.tsx` | **Modify** — on mount, detect `code` + `state` URL params, retrieve `codeVerifier` from sessionStorage, POST to `/api/accounts`, show wizard success |
 
 ---
 
-## Styling
+## Task 2 — Fix Route Authentication (CRITICAL)
 
-Follow existing patterns throughout:
-- Primary: `bg-violet-600 hover:bg-violet-700 text-white`
-- Cards: `rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900`
-- Errors: `bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400`
-- Dark mode: every color has `dark:` variant
-- Responsive: mobile-first with `sm:` breakpoints
+### Problem
+Three route handlers authenticate via `req.headers.get("x-user-id")` which the frontend never sends. These routes silently return 401 or operate without real user identity.
+
+| File | Line | Current |
+|------|------|---------|
+| `src/apps/api/routes/scheduling.ts` | 27-28 | `req.headers.get("x-user-id")` |
+| `src/apps/api/routes/content.ts` | 22-23 | `req.headers.get("x-user-id")` |
+| `src/apps/api/routes/analytics.ts` | 17-18 | `req.headers.get("x-user-id")` |
+
+### What Works
+`src/apps/api/routes/accounts.ts` uses:
+```typescript
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/apps/web/app/api/auth/[...nextauth]/route";
+
+async function getAuthenticatedUserId(req: NextRequest): Promise<string | null> {
+  const session = await getServerSession(authOptions);
+  return session?.user?.id ?? null;
+}
+```
+
+### Fix
+Replace the `getUserId()` function in each of the 3 files with the `getServerSession` pattern from `accounts.ts`. ~5 lines changed per file.
 
 ---
+
+## Task 3 — Deduplicate NextAuth Config (MEDIUM)
+
+### Problem
+Two identical NextAuth route files (187 lines each):
+- `src/app/api/auth/[...nextauth]/route.ts` (active — in the app router)
+- `src/apps/web/app/api/auth/[...nextauth]/route.ts` (unused duplicate)
+
+### Fix
+Delete the duplicate at `src/apps/web/app/api/auth/[...nextauth]/route.ts`. Ensure all imports reference the active one.
+
+---
+
+## Backlog (not blocking)
+
+These are real but lower priority:
+
+| Item | File | Notes |
+|------|------|-------|
+| TikTok analytics returns zeros | `src/domains/platforms/infrastructure/adapters/tiktok-adapter.ts:93` | Stub: `// replace with real TikTok Research API call` |
+| TikTok video upload incomplete | Same file, line 179 | Initiates upload but doesn't stream video file |
+| ffmpeg thumbnail generation | `src/domains/content/infrastructure/video-processor.ts:221` | `throw new Error("not yet implemented")` |
+
+---
+
+## Files Changed Summary
+
+| File | Change | Priority |
+|------|--------|----------|
+| `src/app/api/accounts/callback/[provider]/route.ts` | **Create** — OAuth callback redirect | CRITICAL |
+| `src/app/(app)/accounts/page.tsx` | **Modify** — handle code/state from URL | CRITICAL |
+| `src/apps/api/routes/scheduling.ts` | **Modify** — switch to getServerSession | CRITICAL |
+| `src/apps/api/routes/content.ts` | **Modify** — switch to getServerSession | CRITICAL |
+| `src/apps/api/routes/analytics.ts` | **Modify** — switch to getServerSession | CRITICAL |
+| `src/apps/web/app/api/auth/[...nextauth]/route.ts` | **Delete** — duplicate | MEDIUM |
 
 ## Verification
 1. `npm run build` — zero errors
-2. `/accounts` shows connected accounts + "Connect New Account" button
-3. Wizard step 1 shows three platform cards with correct branding
-4. Step 2 shows platform-specific instructions with developer portal links
-5. Step 3 initiates OAuth redirect (requires valid platform credentials)
-6. On OAuth return, step 4 shows success with account details
-7. "Done" returns to account list with new account visible
-8. sessionStorage cleaned up after wizard completes
+2. OAuth flow: initiate → provider → callback → `/accounts` with code in URL → token exchange → wizard success
+3. `GET /api/content` returns real data (not 401)
+4. `POST /api/scheduling` creates a job when logged in (not 401)
+5. `GET /api/analytics/dashboard` returns metrics (not 401)

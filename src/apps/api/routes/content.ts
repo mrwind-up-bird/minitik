@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ContentStatus } from "@prisma/client";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/apps/web/app/api/auth/[...nextauth]/route";
 import { prisma } from "@/shared/infrastructure/database/postgres";
 import {
   initUpload,
@@ -19,8 +21,9 @@ function jsonError(message: string, status: number) {
   return NextResponse.json({ error: message }, { status });
 }
 
-function getUserId(req: NextRequest): string | null {
-  return req.headers.get("x-user-id");
+async function getUserId(): Promise<string | null> {
+  const session = await getServerSession(authOptions);
+  return (session?.user as { id?: string } | undefined)?.id ?? null;
 }
 
 function parseContentStatus(value: unknown): ContentStatus | undefined {
@@ -46,7 +49,7 @@ function parseContentStatus(value: unknown): ContentStatus | undefined {
  * Returns: { contentId, uploadId, key, chunkUrls, totalChunks }
  */
 export async function uploadInitHandler(req: NextRequest) {
-  const userId = getUserId(req);
+  const userId = await getUserId();
   if (!userId) return jsonError("Unauthorized", 401);
 
   let body: unknown;
@@ -95,7 +98,7 @@ export async function uploadResumeHandler(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const userId = getUserId(req);
+  const userId = await getUserId();
   if (!userId) return jsonError("Unauthorized", 401);
 
   const { id } = params;
@@ -123,7 +126,7 @@ export async function chunkCompleteHandler(
   req: NextRequest,
   { params }: { params: { id: string; n: string } }
 ) {
-  const userId = getUserId(req);
+  const userId = await getUserId();
   if (!userId) return jsonError("Unauthorized", 401);
 
   const { id, n } = params;
@@ -165,7 +168,7 @@ export async function uploadCompleteHandler(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const userId = getUserId(req);
+  const userId = await getUserId();
   if (!userId) return jsonError("Unauthorized", 401);
 
   const { id } = params;
@@ -187,7 +190,7 @@ export async function uploadAbortHandler(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const userId = getUserId(req);
+  const userId = await getUserId();
   if (!userId) return jsonError("Unauthorized", 401);
 
   const { id } = params;
@@ -217,7 +220,7 @@ export async function uploadAbortHandler(
  *   limit - results per page (default: 20, max: 100)
  */
 export async function listContentHandler(req: NextRequest) {
-  const userId = getUserId(req);
+  const userId = await getUserId();
   if (!userId) return jsonError("Unauthorized", 401);
 
   const { searchParams } = new URL(req.url);
@@ -289,7 +292,7 @@ export async function updateContentHandler(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const userId = getUserId(req);
+  const userId = await getUserId();
   if (!userId) return jsonError("Unauthorized", 401);
 
   const { id } = params;
@@ -362,7 +365,7 @@ export async function deleteContentHandler(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const userId = getUserId(req);
+  const userId = await getUserId();
   if (!userId) return jsonError("Unauthorized", 401);
 
   const { id } = params;
@@ -402,7 +405,7 @@ export async function deleteContentHandler(
  * Bulk delete content items. Body: { ids: string[] }
  */
 export async function bulkDeleteHandler(req: NextRequest) {
-  const userId = getUserId(req);
+  const userId = await getUserId();
   if (!userId) return jsonError("Unauthorized", 401);
 
   let body: unknown;

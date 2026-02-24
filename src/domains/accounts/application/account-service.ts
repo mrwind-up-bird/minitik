@@ -8,6 +8,7 @@ import {
   generatePKCEParams,
   PKCEParams,
 } from "../infrastructure/oauth-providers";
+import { fetchPlatformUserInfo } from "../infrastructure/platform-user-info";
 import { getValidAccessToken } from "../infrastructure/token-refresh";
 
 const MAX_ACCOUNTS_PER_USER = 5;
@@ -17,7 +18,7 @@ export interface ConnectAccountParams {
   provider: OAuthProvider;
   code: string;
   codeVerifier: string;
-  platformAccountId: string;
+  platformAccountId?: string;
   platformUsername?: string;
 }
 
@@ -102,8 +103,8 @@ export function initiateOAuthFlow(provider: OAuthProvider): {
 export async function connectAccount(
   params: ConnectAccountParams
 ): Promise<AccountSummary> {
-  const { userId, provider, code, codeVerifier, platformAccountId, platformUsername } =
-    params;
+  const { userId, provider, code, codeVerifier } = params;
+  let { platformAccountId, platformUsername } = params;
 
   // Enforce account limit
   const existingCount = await prisma.account.count({ where: { userId } });
@@ -114,6 +115,13 @@ export async function connectAccount(
   // Exchange code for tokens
   const tokens = await exchangeCodeForTokens(provider, code, codeVerifier);
   const platform = providerToPlatform(provider);
+
+  // Auto-fetch user info from platform API when not provided by caller
+  if (!platformAccountId) {
+    const userInfo = await fetchPlatformUserInfo(provider, tokens.accessToken);
+    platformAccountId = userInfo.platformAccountId;
+    platformUsername = platformUsername ?? userInfo.platformUsername ?? undefined;
+  }
 
   const account = await prisma.account.upsert({
     where: {

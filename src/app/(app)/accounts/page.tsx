@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Platform } from "@prisma/client";
 import { AccountConnection } from "@/apps/web/components/account/account-connection";
 import { ConnectionWizard } from "@/apps/web/components/account/connection-wizard";
@@ -27,6 +27,7 @@ export default function AccountsPage() {
     provider: OAuthProvider;
     username?: string | null;
   } | null>(null);
+  const callbackHandled = useRef(false);
 
   const fetchAccounts = useCallback(async () => {
     try {
@@ -59,16 +60,77 @@ export default function AccountsPage() {
     }
   }, []);
 
-  // On mount, check for wizard return from OAuth redirect
+  // Handle OAuth callback params or wizard sessionStorage return
   useEffect(() => {
+    if (callbackHandled.current) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    const state = params.get("state");
+    const provider = params.get("provider") as OAuthProvider | null;
+    const callbackError = params.get("error");
+
+    // Clean URL params immediately
+    if (code || state || provider || callbackError) {
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+
+    // Handle error from callback
+    if (callbackError) {
+      setError(callbackError);
+      fetchAccounts();
+      return;
+    }
+
+    // Handle OAuth callback: code + state + provider in URL
+    if (code && state && provider) {
+      callbackHandled.current = true;
+      const codeVerifier = sessionStorage.getItem(`oauth_verifier_${state}`);
+      // Clean up sessionStorage
+      sessionStorage.removeItem(`oauth_verifier_${state}`);
+      sessionStorage.removeItem(`oauth_provider_${state}`);
+      sessionStorage.removeItem("wizard_active");
+      sessionStorage.removeItem("wizard_provider");
+
+      if (!codeVerifier) {
+        setError("OAuth session expired. Please try connecting again.");
+        fetchAccounts();
+        return;
+      }
+
+      setLoading(true);
+      fetch("/api/accounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider, code, codeVerifier }),
+      })
+        .then(async (res) => {
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.error ?? "Failed to connect account");
+          }
+          const { account } = await res.json();
+          await fetchAccounts();
+          setWizardSuccess({
+            provider,
+            username: account?.platformUsername ?? null,
+          });
+          setView("wizard");
+        })
+        .catch((err) => {
+          setError(err instanceof Error ? err.message : "Connection failed");
+          fetchAccounts();
+        });
+      return;
+    }
+
+    // Handle wizard return via sessionStorage (fallback for non-callback flows)
     const wizardActive = sessionStorage.getItem("wizard_active");
     const wizardProvider = sessionStorage.getItem("wizard_provider") as OAuthProvider | null;
 
     if (wizardActive && wizardProvider) {
       sessionStorage.removeItem("wizard_active");
       sessionStorage.removeItem("wizard_provider");
-
-      // Find the newly connected account after re-fetch
       fetchAccounts().then(() => {
         setWizardSuccess({ provider: wizardProvider });
         setView("wizard");
@@ -79,12 +141,12 @@ export default function AccountsPage() {
     fetchAccounts();
   }, [fetchAccounts]);
 
-  // Once accounts load, resolve the username for wizard success
+  // Resolve the username for wizard success once accounts load
   useEffect(() => {
-    if (wizardSuccess && accounts.length > 0) {
+    if (wizardSuccess && accounts.length > 0 && !wizardSuccess.username) {
       const platform = PROVIDER_TO_PLATFORM[wizardSuccess.provider];
       const match = accounts.find((a) => a.platform === platform);
-      if (match && !wizardSuccess.username) {
+      if (match) {
         setWizardSuccess((prev) =>
           prev ? { ...prev, username: match.platformUsername } : prev
         );

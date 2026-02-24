@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { JobPriority } from "@prisma/client";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/apps/web/app/api/auth/[...nextauth]/route";
 import {
   schedulePost,
   bulkSchedulePosts,
@@ -20,18 +22,15 @@ function parseJobPriority(value: unknown): JobPriority {
   return "NORMAL";
 }
 
-/**
- * Extract the current user ID from the request.
- * In production this would verify the session/JWT. Replace with real auth.
- */
-function getUserId(req: NextRequest): string | null {
-  return req.headers.get("x-user-id");
+async function getUserId(): Promise<string | null> {
+  const session = await getServerSession(authOptions);
+  return (session?.user as { id?: string } | undefined)?.id ?? null;
 }
 
 // ─── POST /api/scheduling/schedule ───────────────────────────────────────────
 
 export async function scheduleHandler(req: NextRequest) {
-  const userId = getUserId(req);
+  const userId = await getUserId();
   if (!userId) return jsonError("Unauthorized", 401);
 
   let body: unknown;
@@ -83,7 +82,7 @@ export async function scheduleHandler(req: NextRequest) {
 // ─── POST /api/scheduling/bulk ───────────────────────────────────────────────
 
 export async function bulkScheduleHandler(req: NextRequest) {
-  const userId = getUserId(req);
+  const userId = await getUserId();
   if (!userId) return jsonError("Unauthorized", 401);
 
   let body: unknown;
@@ -122,7 +121,7 @@ export async function getJobStatusHandler(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const userId = getUserId(req);
+  const userId = await getUserId();
   if (!userId) return jsonError("Unauthorized", 401);
 
   const { id } = params;
@@ -145,7 +144,7 @@ export async function cancelJobHandler(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const userId = getUserId(req);
+  const userId = await getUserId();
   if (!userId) return jsonError("Unauthorized", 401);
 
   const { id } = params;
@@ -164,7 +163,7 @@ export async function cancelJobHandler(
 // ─── GET /api/scheduling/queue/stats ─────────────────────────────────────────
 
 export async function queueStatsHandler(req: NextRequest) {
-  const userId = getUserId(req);
+  const userId = await getUserId();
   if (!userId) return jsonError("Unauthorized", 401);
 
   // In production: restrict to admin roles. Currently any authenticated user
@@ -181,7 +180,7 @@ export async function queueStatsHandler(req: NextRequest) {
 // ─── GET /api/scheduling/jobs (list user jobs) ────────────────────────────────
 
 export async function listJobsHandler(req: NextRequest) {
-  const userId = getUserId(req);
+  const userId = await getUserId();
   if (!userId) return jsonError("Unauthorized", 401);
 
   const { searchParams } = new URL(req.url);
