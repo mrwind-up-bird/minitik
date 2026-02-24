@@ -19,10 +19,12 @@ export const authOptions: NextAuthOptions = {
 
   providers: [
     EmailProvider({
+      server: process.env.EMAIL_SERVER ?? "smtp://localhost",
       from: process.env.EMAIL_FROM ?? "Minitik <onboarding@resend.dev>",
       async sendVerificationRequest({ identifier: email, url }) {
-        await resend.emails.send({
-          from: process.env.EMAIL_FROM ?? "Minitik <onboarding@resend.dev>",
+        const fromAddress = process.env.EMAIL_FROM ?? "Minitik <onboarding@resend.dev>";
+        const { data, error } = await resend.emails.send({
+          from: fromAddress,
           to: email,
           subject: "Sign in to Minitik",
           html: `
@@ -40,6 +42,12 @@ export const authOptions: NextAuthOptions = {
             </div>
           `,
         });
+
+        if (error) {
+          console.error("Resend error:", JSON.stringify(error));
+          throw new Error(`Failed to send magic link: ${error.message}`);
+        }
+        console.log("Magic link email sent:", data?.id, "to:", email);
       },
     }),
 
