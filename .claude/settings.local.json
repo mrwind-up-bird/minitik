@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(~/.claude/skills/continuous-learning/evaluate-session.sh:*)",
+      "Bash(cp:*)",
+      "Bash(rm:*)",
+      "Bash(cd:*)",
+      "Bash(git:*)"
+    ]
+  }
+}
