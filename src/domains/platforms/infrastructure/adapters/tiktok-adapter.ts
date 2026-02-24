@@ -93,13 +93,45 @@ export class TikTokAdapter implements PlatformAdapter {
       throw new Error("TikTok rate limit exceeded");
     }
 
-    // Stub — replace with real TikTok Research API call
+    const res = await fetch(
+      "https://open.tiktokapis.com/v2/video/query/?fields=id,view_count,like_count,comment_count,share_count",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${account.accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          filters: { video_ids: [platformPostId] },
+        }),
+      }
+    );
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(`TikTok video query ${res.status}: ${JSON.stringify(body)}`);
+    }
+
+    const data = (await res.json()) as {
+      data?: {
+        videos?: {
+          id: string;
+          view_count?: number;
+          like_count?: number;
+          comment_count?: number;
+          share_count?: number;
+        }[];
+      };
+    };
+
+    const video = data.data?.videos?.[0];
+
     return {
       platformPostId,
-      views: 0,
-      likes: 0,
-      comments: 0,
-      shares: 0,
+      views: video?.view_count ?? 0,
+      likes: video?.like_count ?? 0,
+      comments: video?.comment_count ?? 0,
+      shares: video?.share_count ?? 0,
       fetchedAt: new Date(),
     };
   }
