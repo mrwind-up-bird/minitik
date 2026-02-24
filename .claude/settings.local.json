@@ -6,7 +6,8 @@
       "Bash(rm:*)",
       "Bash(cd:*)",
       "Bash(git:*)",
-      "WebFetch(domain:developers.tiktok.com)"
+      "WebFetch(domain:developers.tiktok.com)",
+      "Bash(lsof:*)"
     ]
   }
 }
