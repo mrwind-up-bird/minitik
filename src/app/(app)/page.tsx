@@ -19,26 +19,32 @@ export default function DashboardPage() {
 
   const fetchStats = useCallback(async () => {
     try {
-      const [contentRes, jobsRes] = await Promise.allSettled([
-        fetch("/api/content?limit=1"),
-        fetch("/api/scheduling?status=PENDING"),
-      ]);
+      const [contentRes, draftsRes, scheduledRes, publishedRes, jobsRes] =
+        await Promise.allSettled([
+          fetch("/api/content?limit=1"),
+          fetch("/api/content?status=DRAFT&limit=1"),
+          fetch("/api/content?status=SCHEDULED&limit=1"),
+          fetch("/api/content?status=PUBLISHED&limit=1"),
+          fetch("/api/scheduling?status=PENDING"),
+        ]);
 
-      const contentData =
-        contentRes.status === "fulfilled" && contentRes.value.ok
-          ? await contentRes.value.json()
-          : null;
+      const json = async (r: PromiseSettledResult<Response>) =>
+        r.status === "fulfilled" && r.value.ok ? r.value.json() : null;
 
-      const jobsData =
-        jobsRes.status === "fulfilled" && jobsRes.value.ok
-          ? await jobsRes.value.json()
-          : null;
+      const [contentData, draftsData, scheduledData, publishedData, jobsData] =
+        await Promise.all([
+          json(contentRes),
+          json(draftsRes),
+          json(scheduledRes),
+          json(publishedRes),
+          json(jobsRes),
+        ]);
 
       setStats({
         totalContent: contentData?.total ?? 0,
-        drafts: 0,
-        scheduled: 0,
-        published: 0,
+        drafts: draftsData?.total ?? 0,
+        scheduled: scheduledData?.total ?? 0,
+        published: publishedData?.total ?? 0,
         upcomingJobs: Array.isArray(jobsData) ? jobsData.length : 0,
       });
     } catch {

@@ -3,6 +3,9 @@ import { createBullConnection } from "../../../shared/infrastructure/database/re
 import { prisma } from "../../../shared/infrastructure/database/postgres";
 import { deadLetterQueue, QUEUE_NAMES } from "../../../shared/infrastructure/queues/queue-config";
 import type { PublishJobData } from "./job-scheduler";
+import { getPlatformService } from "../../platforms/application/platform-service";
+import { safeDecrypt } from "../../accounts/infrastructure/token-encryption";
+import type { PlatformAccount, ContentPayload, Platform } from "../../platforms/domain/platform-adapter";
 
 const MAX_ATTEMPTS = 3;
 
@@ -147,18 +150,63 @@ async function processPublishJob(job: Job<PublishJobData>): Promise<void> {
       });
     }
 
-    // TODO: call actual platform adapter here
-    // For now simulate a successful publish
-    await prisma.publication.updateMany({
-      where: { contentId, accountId },
-      data: {
-        status: "PUBLISHED",
-        publishedAt: new Date(),
-        updatedAt: new Date(),
-      },
-    });
+    // Build typed objects for the platform adapter
+    const platformAccount: PlatformAccount = {
+      id: account.id,
+      userId: account.userId,
+      platform: account.platform as Platform,
+      platformAccountId: account.platformAccountId,
+      platformUsername: account.platformUsername,
+      accessToken: safeDecrypt(account.accessToken) ?? "",
+      refreshToken: safeDecrypt(account.refreshToken),
+      tokenExpiresAt: account.tokenExpiresAt,
+      metadata: account.metadata as Record<string, unknown> | null,
+    };
 
-    successCount++;
+    const contentPayload: ContentPayload = {
+      id: content.id,
+      title: content.title,
+      description: content.description,
+      filePath: content.filePath,
+      thumbnailPath: content.thumbnailPath,
+      mimeType: content.mimeType,
+      duration: content.duration,
+      metadata: content.metadata as Record<string, unknown> | null,
+    };
+
+    if (!platformAccount.accessToken) {
+      errors.push(`Account ${accountId} has invalid/corrupt token`);
+      await prisma.publication.updateMany({
+        where: { contentId, accountId },
+        data: { status: "FAILED", error: "Token decryption failed", updatedAt: new Date() },
+      });
+      continue;
+    }
+
+    const platformService = getPlatformService();
+    const result = await platformService.publishContent(platformAccount, contentPayload);
+
+    if (result.success) {
+      await prisma.publication.updateMany({
+        where: { contentId, accountId },
+        data: {
+          status: "PUBLISHED",
+          platformPostId: result.platformPostId ?? null,
+          publishedAt: result.publishedAt ?? new Date(),
+          updatedAt: new Date(),
+        },
+      });
+      successCount++;
+    } else if (result.rateLimitHit) {
+      // Throw to trigger BullMQ retry with backoff
+      throw new Error(`Rate limited by ${account.platform}: ${result.error}`);
+    } else {
+      errors.push(`${account.platform} publish failed: ${result.error}`);
+      await prisma.publication.updateMany({
+        where: { contentId, accountId },
+        data: { status: "FAILED", error: result.error ?? "Unknown error", updatedAt: new Date() },
+      });
+    }
     const progressPct = 25 + Math.round(((i + 1) / totalAccounts) * 70);
     await job.updateProgress(progressPct);
   }
