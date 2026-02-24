@@ -1,16 +1,48 @@
 import NextAuth, { NextAuthOptions, Session, User } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import EmailProvider from "next-auth/providers/email";
 import { prisma } from "@/shared/infrastructure/database/postgres";
 import { createHash } from "crypto";
 import { JWT } from "next-auth/jwt";
+import { Resend } from "resend";
+import { MagicLinkAdapter } from "@/shared/infrastructure/auth/magic-link-adapter";
 
 /** Minimal password verification using SHA-256 (replace with bcrypt if added as dep) */
 function hashPassword(password: string): string {
   return createHash("sha256").update(password).digest("hex");
 }
 
+const resend = new Resend(process.env.RESEND_API_KEY);
+
 export const authOptions: NextAuthOptions = {
+  adapter: MagicLinkAdapter(),
+
   providers: [
+    EmailProvider({
+      from: process.env.EMAIL_FROM ?? "Minitik <onboarding@resend.dev>",
+      async sendVerificationRequest({ identifier: email, url }) {
+        await resend.emails.send({
+          from: process.env.EMAIL_FROM ?? "Minitik <onboarding@resend.dev>",
+          to: email,
+          subject: "Sign in to Minitik",
+          html: `
+            <div style="max-width:480px;margin:0 auto;font-family:system-ui,-apple-system,sans-serif;padding:40px 20px">
+              <h1 style="font-size:24px;font-weight:700;color:#7c3aed;margin-bottom:8px">minitik</h1>
+              <p style="color:#525252;font-size:16px;line-height:24px;margin-bottom:24px">
+                Click the button below to sign in to your account. This link expires in 24 hours.
+              </p>
+              <a href="${url}" style="display:inline-block;background:#7c3aed;color:#fff;font-size:14px;font-weight:600;text-decoration:none;padding:12px 24px;border-radius:8px">
+                Sign in to Minitik
+              </a>
+              <p style="color:#a3a3a3;font-size:12px;margin-top:32px">
+                If you didn't request this email, you can safely ignore it.
+              </p>
+            </div>
+          `,
+        });
+      },
+    }),
+
     CredentialsProvider({
       name: "credentials",
       credentials: {
@@ -136,6 +168,7 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: "/login",
     error: "/login",
+    verifyRequest: "/login?verify=1",
   },
 
   secret: process.env.NEXTAUTH_SECRET,

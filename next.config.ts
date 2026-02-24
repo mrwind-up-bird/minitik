@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
     "bullmq",
     "mongodb",
     "web-push",
+    "nodemailer",
   ],
 
   // PWA headers
