@@ -1,163 +1,84 @@
-# Social Media Account Integration Wizards
+# Social Media Account Connection Wizard
 
 ## Context
 
-minitik has a complete OAuth PKCE infrastructure (token encryption, refresh, rate limiting, circuit breakers, platform adapters) but the actual connection flow is broken: the OAuth redirect URIs point to `/api/accounts/callback/{platform}` which **don't exist**. The frontend has simple connect buttons but no guided setup flow. Users who haven't configured their developer credentials get no guidance.
-
-**Goal:** Build step-by-step connection wizards for TikTok, Instagram, and YouTube that guide users from developer setup through OAuth connection to verification, and fix the missing callback handler.
+The `/accounts` page has a flat `AccountConnection` component with connect/disconnect/refresh buttons. The OAuth PKCE infrastructure is fully working (initiate, token exchange, encryption, refresh, platform adapters). Users get no guidance on setting up developer apps before connecting. We need a step-by-step wizard that wraps the existing OAuth flow with platform-specific setup instructions.
 
 ---
 
-## Architecture Overview
+## Wizard Flow
 
-### Current Flow (broken)
-1. Click "Connect TikTok" → POST `/api/accounts/initiate` → get `authorizationUrl`
-2. Store `codeVerifier` + `state` in sessionStorage
-3. Redirect to TikTok OAuth
-4. TikTok redirects to `/api/accounts/callback/tiktok` → **404 (doesn't exist)**
+1. **Step 1 — Choose Platform**: Cards for TikTok, Instagram, YouTube with branding. Shows already-connected badges. Disabled if 5-account limit reached.
+2. **Step 2 — Setup Guide**: Platform-specific numbered instructions (create developer app, enable APIs, configure redirect URI, get credentials). Links to developer portals. Required scopes listed.
+3. **Step 3 — Connect**: Summary + "Connect to {Platform}" button. Calls existing `POST /api/accounts/initiate`, stores PKCE params + `wizard_active` in sessionStorage, redirects to provider.
+4. **Step 4 — Success**: Checkmark, connected account details, "Connect Another" or "Done" buttons.
 
-### New Flow (wizard)
-1. User opens `/accounts/connect` → wizard Step 1: pick platform
-2. Step 2: setup guide (developer portal instructions, links, required env vars)
-3. Step 3: click "Connect" → initiates OAuth → redirects to provider
-4. Provider redirects to `/accounts/connect/callback?code=X&state=Y` (client page)
-5. Callback page reads `state` from URL → retrieves `provider` + `codeVerifier` from sessionStorage
-6. POSTs to `POST /api/accounts/connect` → server exchanges code, fetches user profile, encrypts tokens, saves account
-7. Redirect to wizard Step 4: success confirmation with account details
+OAuth return: On redirect back to `/accounts`, page detects `wizard_active` in sessionStorage and renders wizard at step 4 after re-fetching accounts.
 
 ---
 
-## Files to Change
+## Files to Create (8)
 
-### NEW Files
+### `src/apps/web/components/account/wizard/platform-config.ts`
+Shared constants: `PLATFORM_LABELS`, `PLATFORM_COLORS`, `PROVIDER_TO_PLATFORM`, `OAuthProvider` type.
 
-#### 1. `src/app/(app)/accounts/connect/page.tsx` — Connection Wizard (~250 lines)
-Multi-step wizard with 4 steps:
-- **Step 1: Choose Platform** — Cards for TikTok, Instagram, YouTube. Show which are already connected. Disable if at limit (5).
-- **Step 2: Setup Guide** — Platform-specific instructions with:
-  - TikTok: Link to https://developers.tiktok.com/, steps to create app, enable Login Kit + Content Posting API, add redirect URI, get Client Key/Secret
-  - Instagram: Link to https://developers.facebook.com/, create Consumer app, add Instagram Basic Display, configure redirect, get App ID/Secret
-  - YouTube: Link to https://console.cloud.google.com/, enable YouTube Data API v3, create OAuth credentials, configure consent screen, add redirect URI, get Client ID/Secret
-  - Each shows the exact redirect URI to register: `{NEXTAUTH_URL}/accounts/connect/callback`
-  - Collapsible "I've already set this up" option to skip
-- **Step 3: Connect** — Button that initiates OAuth. Shows loading state during redirect.
-- **Step 4: Success/Error** — Reached via redirect from callback page. Shows connected account details or error message.
+### `src/apps/web/components/account/wizard/step-indicator.tsx`
+Horizontal step progress: 4 circles connected by lines. Violet for completed/current, neutral for future. Responsive (hides labels on mobile).
 
-UI: Use existing Tailwind patterns (violet-600 primary, rounded-xl cards, dark mode support). Horizontal step indicator at top.
+### `src/apps/web/components/account/wizard/platform-picker.tsx`
+Step 1. Three cards in `grid-cols-1 sm:grid-cols-3`. Platform icon + name + description. Green "Connected" badge if already linked. Clickable unless at 5-account limit.
 
-#### 2. `src/app/(app)/accounts/connect/callback/page.tsx` — OAuth Callback Handler (~80 lines)
-Client page that:
-- Reads `code` and `state` from URL search params
-- Retrieves `codeVerifier` and `provider` from sessionStorage (keyed by `state`)
-- Shows a loading spinner ("Connecting your account...")
-- POSTs to `/api/accounts/connect` with `{ provider, code, codeVerifier }`
-- On success: redirects to `/accounts/connect?step=success&platform={PLATFORM}`
-- On error: redirects to `/accounts/connect?step=error&message={error}`
-- Cleans up sessionStorage entries
+### `src/apps/web/components/account/wizard/platform-setup-guide.tsx`
+Step 2. Contains `SETUP_GUIDES` constant with per-platform content:
 
-#### 3. `src/app/api/accounts/connect/route.ts` — Server-side Connect Endpoint (~15 lines)
-Thin route file that calls the new `handleConnectWithCode` handler.
+- **TikTok** (developers.tiktok.com): Create app, enable Login Kit + Content Posting API, add redirect URI, copy Client Key. Scopes: `user.info.basic`, `video.list`, `video.upload`.
+- **Instagram** (developers.facebook.com): Create Consumer app, add Instagram Basic Display, configure redirect, copy App ID/Secret. Scopes: `user_profile`, `user_media`.
+- **YouTube** (console.cloud.google.com): Create project, enable YouTube Data API v3, create OAuth credentials, configure consent screen. Scopes: `youtube.upload`, `youtube.readonly`.
 
-#### 4. `src/domains/accounts/infrastructure/platform-user-info.ts` — Fetch User Profile (~90 lines)
-New module that fetches user info from each platform using an access token:
-- `fetchPlatformUserInfo(provider, accessToken)` → `{ platformAccountId, platformUsername }`
-- TikTok: GET `https://open.tiktokapis.com/v2/user/info/` with Bearer token → extract `open_id` and `display_name`
-- Instagram: GET `https://graph.instagram.com/v19.0/me?fields=id,username` → extract `id` and `username`
-- YouTube: GET `https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true` → extract `channelId` and `title`
+Each step rendered as numbered list with circles. Code blocks for redirect URIs (with copy button). Tips in amber callout. "Back" and "I've completed setup, continue" buttons.
 
-### MODIFIED Files
+### `src/apps/web/components/account/wizard/use-oauth-connect.ts`
+Shared hook extracting OAuth initiation logic from `AccountConnection`. Returns `{ connecting, error, initiateConnect }`. Stores PKCE params + optional `wizard_active`/`wizard_provider` in sessionStorage before redirect.
 
-#### 5. `src/domains/accounts/application/account-service.ts` — Add `connectWithCode()` (~30 lines added)
-New function that combines: code exchange → user info fetch → account save.
-```typescript
-export async function connectWithCode(params: {
-  userId: string;
-  provider: OAuthProvider;
-  code: string;
-  codeVerifier: string;
-}): Promise<AccountSummary>
-```
-Internally calls `exchangeCodeForTokens()` → `fetchPlatformUserInfo()` → existing `connectAccount()` logic (upsert with encrypted tokens).
+### `src/apps/web/components/account/wizard/oauth-connect-step.tsx`
+Step 3. Summary card with platform name. "You'll be redirected to {platform}" message. "Connect to {Platform}" button using `useOAuthConnect` hook. Loading/error states.
 
-#### 6. `src/apps/api/routes/accounts.ts` — Add `handleConnectWithCode` handler (~30 lines)
-New handler that validates `{ provider, code, codeVerifier }` (no `platformAccountId` required) and calls `connectWithCode()`.
+### `src/apps/web/components/account/wizard/connection-success.tsx`
+Step 4. Green checkmark icon, "Account Connected!" heading, platform badge, username if available. "Connect Another Account" and "Done" buttons.
 
-#### 7. `src/domains/accounts/infrastructure/oauth-providers.ts` — Update redirect URIs (~3 lines)
-Change all three redirect URIs from `/api/accounts/callback/{platform}` to `/accounts/connect/callback`.
-
-#### 8. `src/app/(app)/accounts/page.tsx` — Add "Connect Account" button linking to wizard (~5 lines)
-Replace inline connect buttons with a link to `/accounts/connect`.
-
-#### 9. `src/apps/web/components/account/account-connection.tsx` — Replace connect section (~10 lines)
-Replace the inline "Connect a platform" buttons section with a single "Connect New Account" link to `/accounts/connect`.
+### `src/apps/web/components/account/connection-wizard.tsx`
+Main orchestrator. Manages `step` and `selectedProvider` state. Renders `WizardStepIndicator` + current step component. Handles step transitions. Props: `connectedPlatforms`, `accountCount`, `onComplete`, `onCancel`.
 
 ---
 
-## Platform Setup Guides (content for Step 2)
+## File to Modify (1)
 
-### TikTok
-1. Go to [TikTok Developer Portal](https://developers.tiktok.com/)
-2. Create a new app (or select existing)
-3. Under **Products**, enable **Login Kit** and **Content Posting API**
-4. Under **Configuration**, add redirect URI: `{your-domain}/accounts/connect/callback`
-5. Copy your **Client Key** and **Client Secret**
-6. Set in `.env`: `TIKTOK_CLIENT_ID=<client_key>` and `TIKTOK_CLIENT_SECRET=<secret>`
-7. Note: App must be approved for "Content Posting API" scope to publish videos
-
-### Instagram
-1. Go to [Meta Developer Console](https://developers.facebook.com/)
-2. Create a new app (type: **Consumer**)
-3. Add the **Instagram Basic Display** product
-4. Under **Instagram Basic Display > Basic Display**, add redirect URI: `{your-domain}/accounts/connect/callback`
-5. Copy your **Instagram App ID** and **Instagram App Secret**
-6. Set in `.env`: `INSTAGRAM_CLIENT_ID=<app_id>` and `INSTAGRAM_CLIENT_SECRET=<secret>`
-7. Note: For Reels publishing, app needs **Instagram Content Publishing** permission (requires App Review)
-
-### YouTube
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project (or select existing)
-3. Enable **YouTube Data API v3** under APIs & Services
-4. Under **Credentials**, create an **OAuth 2.0 Client ID** (type: Web application)
-5. Add authorized redirect URI: `{your-domain}/accounts/connect/callback`
-6. Configure the **OAuth consent screen** (External, add youtube.upload and youtube.readonly scopes)
-7. Copy **Client ID** and **Client Secret**
-8. Set in `.env`: `YOUTUBE_CLIENT_ID=<client_id>` and `YOUTUBE_CLIENT_SECRET=<secret>`
-9. Note: While in "Testing" mode, only test users added to the consent screen can connect
+### `src/app/(app)/accounts/page.tsx`
+- Add `view` state: `"list" | "wizard"`
+- On mount, check `sessionStorage.getItem("wizard_active")` — if present, set view to `"wizard"`
+- In list view: existing `AccountConnection` + "Connect New Account" button (violet, top-right)
+- In wizard view: `<ConnectionWizard>` with `onComplete` (refetch + switch to list) and `onCancel` (switch to list)
+- Hide connect button if account limit reached
 
 ---
 
-## Team Structure
+## Styling
 
-Three parallel work streams:
-
-### Agent 1: Backend (general-purpose, worktree)
-- Create `platform-user-info.ts` (fetch user profiles from each platform)
-- Add `connectWithCode()` to `account-service.ts`
-- Add `handleConnectWithCode` to `accounts.ts` route handler
-- Create `src/app/api/accounts/connect/route.ts`
-- Update redirect URIs in `oauth-providers.ts`
-
-### Agent 2: Frontend (general-purpose, worktree)
-- Build the connection wizard page (`accounts/connect/page.tsx`)
-- Build the callback handler page (`accounts/connect/callback/page.tsx`)
-- Update `accounts/page.tsx` and `account-connection.tsx` to link to wizard
-- Include setup guides content and step indicator UI
-
-### Agent 3: Security Review + Build Verification
-- Review all new code for security issues (CSRF, token handling, XSS)
-- Verify `npm run build` passes
-- Check that sessionStorage cleanup happens properly
-- Verify error handling covers all edge cases
+Follow existing patterns throughout:
+- Primary: `bg-violet-600 hover:bg-violet-700 text-white`
+- Cards: `rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900`
+- Errors: `bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400`
+- Dark mode: every color has `dark:` variant
+- Responsive: mobile-first with `sm:` breakpoints
 
 ---
 
 ## Verification
 1. `npm run build` — zero errors
-2. Navigate to `/accounts` → see "Connect New Account" button
-3. Click → opens wizard at `/accounts/connect`
-4. Select TikTok → see setup guide with developer portal link
-5. Click "Connect" → redirected to TikTok OAuth (requires valid credentials)
-6. After OAuth → callback page exchanges code → success step shows account
-7. Back at `/accounts` → new account visible in list
-8. Repeat for Instagram and YouTube
-9. Security: sessionStorage cleaned after callback, tokens encrypted in DB, PKCE verified
+2. `/accounts` shows connected accounts + "Connect New Account" button
+3. Wizard step 1 shows three platform cards with correct branding
+4. Step 2 shows platform-specific instructions with developer portal links
+5. Step 3 initiates OAuth redirect (requires valid platform credentials)
+6. On OAuth return, step 4 shows success with account details
+7. "Done" returns to account list with new account visible
+8. sessionStorage cleaned up after wizard completes
