@@ -1,6 +1,6 @@
 # minitik Operations Runbook
 
-**Last Updated:** 2026-02-24
+**Last Updated:** 2026-02-25
 **Source of Truth:** `package.json`, `.env.example`, `prisma/schema.prisma`, `src/shared/infrastructure/`
 
 ---
@@ -142,7 +142,7 @@ The application exposes queue metrics via `src/shared/infrastructure/monitoring/
 }
 ```
 
-Access via API at `GET /api/scheduling/stats`.
+Access via API at `GET /api/scheduling/stats` (admin-only — requires the authenticated user's email to be in the `ADMIN_EMAILS` env var).
 
 ### Key Metrics to Watch
 
@@ -313,8 +313,12 @@ DATABASE_URL="<production-url>" npx prisma db execute --file reverse-migration.s
 The publishing orchestrator supports rolling back published content:
 
 - **API**: `DELETE /api/publishing/[contentId]` triggers the rollback flow.
-- **What it does**: Marks publications as rolled back in the database and reverts content status to `DRAFT`.
-- **Limitation**: Platform-specific delete API calls are not yet implemented in the adapters. The rollback currently only updates internal state.
+- **What it does**: Calls `deletePost()` on each platform adapter to remove the published content, marks publications as rolled back in the database, and reverts content status to `DRAFT`.
+- **Platform delete methods**:
+  - TikTok: `POST /v2/post/delete/` with `publish_id`
+  - Instagram: `DELETE /{media-id}` via Graph API
+  - YouTube: `DELETE /youtube/v3/videos?id={videoId}`
+- **Partial failure**: If some platforms fail to delete, those are tracked in the `failed` array of the rollback result. Successfully deleted posts are in `rolledBack`.
 
 ### Queue Rollback / Drain
 

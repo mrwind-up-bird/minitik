@@ -1,6 +1,6 @@
 # Contributing to minitik
 
-**Last Updated:** 2026-02-24
+**Last Updated:** 2026-02-25
 **Source of Truth:** `package.json`, `.env.example`, `prisma/schema.prisma`
 
 ---
@@ -77,12 +77,15 @@ All variables are defined in `.env.example`. Copy it to `.env` and fill in the v
 | `NEXTAUTH_URL` | Yes | URL (e.g., `http://localhost:3000`) | NextAuth base URL for callbacks |
 | `NEXTAUTH_SECRET` | Yes | Random string (32+ chars) | NextAuth session encryption secret |
 | `ENCRYPTION_KEY` | Yes | 64 hex characters (32 bytes) | AES-256-GCM key for encrypting OAuth tokens at rest |
+| `RESEND_API_KEY` | Yes | `re_...` | Resend API key for magic link emails |
+| `EMAIL_FROM` | No | `Name <email>` (default: `Minitik <onboarding@resend.dev>`) | Sender address for magic link emails (must use a verified Resend domain for non-test emails) |
+| `ADMIN_EMAILS` | No | Comma-separated emails | Email addresses with admin access to queue stats endpoint |
 
 ### Platform OAuth Credentials
 
 | Variable | Required | Format | Purpose |
 |----------|----------|--------|---------|
-| `TIKTOK_CLIENT_KEY` | For TikTok | String | TikTok developer app client key |
+| `TIKTOK_CLIENT_ID` | For TikTok | String | TikTok developer app client key |
 | `TIKTOK_CLIENT_SECRET` | For TikTok | String | TikTok developer app client secret |
 | `INSTAGRAM_CLIENT_ID` | For Instagram | String | Meta/Instagram app client ID |
 | `INSTAGRAM_CLIENT_SECRET` | For Instagram | String | Meta/Instagram app client secret |
@@ -137,6 +140,8 @@ All scripts are defined in `package.json` and run via `npm run <script>`.
 | `db:migrate` | `prisma migrate dev` | Create and apply a migration (development only) |
 | `db:seed` | `npx tsx prisma/seed.ts` | Seed the database with sample data |
 | `db:studio` | `prisma studio` | Open Prisma Studio GUI at `http://localhost:5555` |
+| `test` | `vitest run` | Run the test suite (66 tests across 5 files) |
+| `test:watch` | `vitest` | Run tests in watch mode |
 
 ---
 
@@ -377,6 +382,25 @@ These are configured at 50% of each platform's actual API limits to provide safe
 ---
 
 ## Testing Procedures
+
+### Unit Tests
+
+Tests use [Vitest](https://vitest.dev/) and are co-located with the code they test in `__tests__/` directories.
+
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+```
+
+Current test coverage:
+- `video-processor.test.ts` — 19 tests (content validation, duration, file size)
+- `platform-user-info.test.ts` — 10 tests (TikTok/Instagram/YouTube profile fetching)
+- `oauth-providers.test.ts` — 14 tests (PKCE generation, OAuth URL building, token exchange)
+- `account-service.test.ts` — 11 tests (account CRUD, connection flow)
+- `scheduling-service.test.ts` — 12 tests (job scheduling, cancellation, listing)
 
 ### Build Verification
 
