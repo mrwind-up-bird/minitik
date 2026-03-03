@@ -43,16 +43,16 @@ export function PlatformPicker({ connectedPlatforms, accountCount, onSelect }: P
   return (
     <div className="space-y-4">
       <div className="text-center">
-        <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
+        <h2 className="text-lg font-semibold text-nyx-text">
           Choose a platform
         </h2>
-        <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+        <p className="mt-1 text-sm text-nyx-muted">
           Select the platform you want to connect.
         </p>
       </div>
 
       {atLimit && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-400">
+        <div className="rounded-lg border border-amber-800 bg-amber-950/30 px-4 py-3 text-sm text-amber-400">
           You&apos;ve reached the maximum of 5 connected accounts.
         </div>
       )}
@@ -70,12 +70,12 @@ export function PlatformPicker({ connectedPlatforms, accountCount, onSelect }: P
               disabled={disabled}
               className={`relative flex flex-col items-center gap-3 rounded-xl border p-6 text-center transition-all ${
                 disabled
-                  ? "cursor-not-allowed border-neutral-200 bg-neutral-50 opacity-60 dark:border-neutral-700 dark:bg-neutral-800/50"
-                  : "border-neutral-200 bg-white hover:border-violet-400 hover:shadow-md dark:border-neutral-700 dark:bg-neutral-900 dark:hover:border-violet-500"
+                  ? "cursor-not-allowed border-nyx-border bg-nyx-surface/50 opacity-60"
+                  : "border-nyx-border bg-nyx-surface hover:border-nyx-cyan/40 hover:glow-cyan-sm"
               }`}
             >
               {isConnected && (
-                <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-700 dark:bg-green-950/50 dark:text-green-400">
+                <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-emerald-950/50 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
                   <svg className="h-2.5 w-2.5" viewBox="0 0 20 20" fill="currentColor">
                     <path
                       fillRule="evenodd"
@@ -86,12 +86,12 @@ export function PlatformPicker({ connectedPlatforms, accountCount, onSelect }: P
                   Connected
                 </span>
               )}
-              <div className="text-neutral-700 dark:text-neutral-300">{icon}</div>
+              <div className="text-nyx-text">{icon}</div>
               <div>
-                <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                <p className="text-sm font-semibold text-nyx-text">
                   {PLATFORM_LABELS[platform]}
                 </p>
-                <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
+                <p className="mt-0.5 text-xs text-nyx-muted">
                   {description}
                 </p>
               </div>

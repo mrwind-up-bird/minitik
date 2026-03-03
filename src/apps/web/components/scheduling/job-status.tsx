@@ -52,26 +52,26 @@ function progressPercent(progress: number | Record<string, unknown>): number {
 function statusColor(status: JobStatus): string {
   switch (status) {
     case "PENDING":
-      return "text-yellow-600 bg-yellow-50";
+      return "text-yellow-400 bg-yellow-950/30";
     case "ACTIVE":
-      return "text-blue-600 bg-blue-50";
+      return "text-nyx-cyan bg-nyx-cyan/10";
     case "COMPLETED":
-      return "text-green-600 bg-green-50";
+      return "text-emerald-400 bg-emerald-950/30";
     case "FAILED":
-      return "text-red-600 bg-red-50";
+      return "text-red-400 bg-red-950/30";
     case "CANCELLED":
-      return "text-gray-500 bg-gray-100";
+      return "text-nyx-muted bg-nyx-border/50";
   }
 }
 
 function priorityBadge(priority: JobPriority): string {
   switch (priority) {
     case "HIGH":
-      return "bg-red-100 text-red-700";
+      return "bg-red-950/50 text-red-300";
     case "NORMAL":
-      return "bg-blue-100 text-blue-700";
+      return "bg-nyx-cyan/10 text-nyx-cyan";
     case "LOW":
-      return "bg-gray-100 text-gray-600";
+      return "bg-nyx-border text-nyx-muted";
   }
 }
 
@@ -79,9 +79,9 @@ function priorityBadge(priority: JobPriority): string {
 
 function ProgressBar({ value }: { value: number }) {
   return (
-    <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+    <div className="w-full bg-nyx-border rounded-full h-2 mt-2">
       <div
-        className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+        className="bg-nyx-cyan h-2 rounded-full transition-all duration-300"
         style={{ width: `${value}%` }}
         role="progressbar"
         aria-valuenow={value}
@@ -106,23 +106,23 @@ function RetryInfo({
   return (
     <div className="mt-2 text-sm">
       <div className="flex items-center gap-2">
-        <span className="text-gray-500">Attempts:</span>
-        <span className={attempts >= maxAttempts ? "text-red-600 font-medium" : "text-gray-700"}>
+        <span className="text-nyx-muted">Attempts:</span>
+        <span className={attempts >= maxAttempts ? "text-red-400 font-medium" : "text-nyx-text"}>
           {attempts} / {maxAttempts}
         </span>
         {attempts > 0 && attempts < maxAttempts && (
-          <span className="text-yellow-600 text-xs">
+          <span className="text-yellow-400 text-xs">
             (will retry)
           </span>
         )}
         {attempts >= maxAttempts && (
-          <span className="text-red-600 text-xs font-medium">
+          <span className="text-red-400 text-xs font-medium">
             (max retries reached)
           </span>
         )}
       </div>
       {error && (
-        <div className="mt-1 p-2 bg-red-50 border border-red-100 rounded text-red-700 text-xs break-words">
+        <div className="mt-1 p-2 bg-red-950/30 border border-red-800 rounded text-red-400 text-xs break-words">
           {error}
         </div>
       )}
@@ -208,16 +208,16 @@ export function JobStatus({
 
   if (loading) {
     return (
-      <div className="animate-pulse rounded-lg border border-gray-200 p-4 space-y-2">
-        <div className="h-4 bg-gray-200 rounded w-1/3" />
-        <div className="h-3 bg-gray-100 rounded w-1/2" />
+      <div className="animate-pulse rounded-lg border border-nyx-border bg-nyx-surface p-4 space-y-2">
+        <div className="h-4 bg-nyx-border rounded w-1/3" />
+        <div className="h-3 bg-nyx-border/50 rounded w-1/2" />
       </div>
     );
   }
 
   if (error && !job) {
     return (
-      <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-700 text-sm">
+      <div className="rounded-lg border border-red-800 bg-red-950/30 p-4 text-red-400 text-sm">
         {error}
       </div>
     );
@@ -230,14 +230,14 @@ export function JobStatus({
   const canCancel = job.status === "PENDING";
 
   return (
-    <article className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm space-y-3">
+    <article className="rounded-lg border border-nyx-border bg-nyx-surface p-4 space-y-3">
       {/* Header */}
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <h3 className="font-medium text-gray-900 truncate">
+          <h3 className="font-medium text-nyx-text truncate">
             {job.content.title}
           </h3>
-          <p className="text-xs text-gray-500 mt-0.5">
+          <p className="text-xs text-nyx-muted mt-0.5">
             {job.accountIds.length} account{job.accountIds.length !== 1 ? "s" : ""}
           </p>
         </div>
@@ -257,18 +257,18 @@ export function JobStatus({
       </div>
 
       {/* Scheduled time */}
-      <div className="text-sm text-gray-600">
-        <span className="font-medium">Scheduled: </span>
+      <div className="text-sm text-nyx-muted">
+        <span className="font-medium text-nyx-text">Scheduled: </span>
         {formatDateInTimezone(job.scheduledAt, job.timezone)}
         {job.timezone !== "UTC" && (
-          <span className="text-gray-400 ml-1">({job.timezone})</span>
+          <span className="text-nyx-muted/60 ml-1">({job.timezone})</span>
         )}
       </div>
 
       {/* Progress bar (only during active processing) */}
       {job.status === "ACTIVE" && (
         <div>
-          <div className="flex justify-between text-xs text-gray-500 mb-1">
+          <div className="flex justify-between text-xs text-nyx-muted mb-1 font-mono">
             <span>Publishing...</span>
             <span>{progress}%</span>
           </div>
@@ -285,7 +285,7 @@ export function JobStatus({
 
       {/* Completed / failed timestamps */}
       {job.completedAt && (
-        <div className="text-xs text-gray-500">
+        <div className="text-xs text-nyx-muted">
           {job.status === "COMPLETED" ? "Completed" : "Finished"} at{" "}
           {new Date(job.completedAt).toLocaleString()}
         </div>
@@ -293,7 +293,7 @@ export function JobStatus({
 
       {/* Error banner from hook polling */}
       {error && (
-        <p className="text-xs text-red-600">{error}</p>
+        <p className="text-xs text-red-400">{error}</p>
       )}
 
       {/* Actions */}
@@ -301,7 +301,7 @@ export function JobStatus({
         <div className="flex gap-2 pt-1">
           <button
             onClick={fetchStatus}
-            className="text-xs text-blue-600 hover:text-blue-800 underline"
+            className="text-xs text-nyx-cyan hover:underline"
           >
             Refresh
           </button>
@@ -310,7 +310,7 @@ export function JobStatus({
             <button
               onClick={handleCancel}
               disabled={cancelling}
-              className="text-xs text-red-600 hover:text-red-800 underline disabled:opacity-50"
+              className="text-xs text-red-400 hover:underline disabled:opacity-50"
             >
               {cancelling ? "Cancelling..." : "Cancel"}
             </button>
@@ -336,7 +336,7 @@ export function JobStatusList({
 }: JobStatusListProps) {
   if (jobIds.length === 0) {
     return (
-      <p className="text-sm text-gray-500 text-center py-8">
+      <p className="text-sm text-nyx-muted text-center py-8">
         No scheduled jobs yet.
       </p>
     );

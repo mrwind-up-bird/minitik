@@ -44,12 +44,12 @@ export function ConnectionWizard({
     <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
+        <h2 className="text-lg font-semibold text-nyx-text">
           Connect Account
         </h2>
         <button
           onClick={onCancel}
-          className="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm text-neutral-600 transition-colors hover:bg-neutral-50 dark:border-neutral-600 dark:text-neutral-400 dark:hover:bg-neutral-800"
+          className="rounded-lg border border-nyx-border px-3 py-1.5 text-sm text-nyx-muted transition-colors hover:bg-nyx-surface"
         >
           Cancel
         </button>

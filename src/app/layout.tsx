@@ -26,7 +26,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#ff0050",
+  themeColor: "#0a0a0f",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
@@ -38,19 +38,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" style={{ colorScheme: "dark" }}>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-nyx-midnight text-nyx-text`}
       >
         <Providers>
           {children}
-          <footer className="w-full py-4 text-center text-xs text-neutral-400 dark:text-neutral-500">
-            &copy; 2026 built by{" "}
+          <footer className="w-full border-t border-nyx-border py-4 text-center text-xs text-nyx-muted">
+            &copy;2026 &mdash;{" "}
             <a
               href="https://nyxcore.vercel.app/"
               target="_blank"
               rel="noopener noreferrer"
-              className="underline underline-offset-2 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
+              className="text-nyx-cyan/70 hover:text-nyx-cyan transition-colors"
             >
               nyxCore
             </a>

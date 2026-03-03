@@ -25,7 +25,7 @@ const PLATFORM_LABELS: Record<Platform, string> = {
 };
 
 const PLATFORM_COLORS: Record<Platform, string> = {
-  TIKTOK: "bg-black text-white",
+  TIKTOK: "bg-white text-nyx-midnight",
   INSTAGRAM: "bg-gradient-to-r from-purple-500 to-pink-500 text-white",
   YOUTUBE: "bg-red-600 text-white",
 };
@@ -39,11 +39,11 @@ const STATUS_LABELS: Record<AccountStatus, string> = {
 };
 
 const STATUS_COLORS: Record<AccountStatus, string> = {
-  CONNECTING: "text-yellow-600",
-  CONNECTED: "text-green-600",
-  EXPIRED: "text-orange-600",
-  REVOKED: "text-red-600",
-  ERROR: "text-red-600",
+  CONNECTING: "text-yellow-400",
+  CONNECTED: "text-emerald-400",
+  EXPIRED: "text-orange-400",
+  REVOKED: "text-red-400",
+  ERROR: "text-red-400",
 };
 
 type OAuthProvider = "tiktok" | "instagram" | "youtube";
@@ -135,14 +135,14 @@ export function AccountConnection({ initialAccounts }: AccountConnectionProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold">Connected Accounts</h2>
-        <p className="text-sm text-gray-500">
+        <h2 className="text-xl font-semibold text-nyx-text">Connected Accounts</h2>
+        <p className="text-sm text-nyx-muted">
           {accounts.length} / 5 accounts connected
         </p>
       </div>
 
       {error && (
-        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <div className="rounded-md border border-red-800 bg-red-950/30 p-3 text-sm text-red-400">
           {error}
         </div>
       )}
@@ -153,7 +153,7 @@ export function AccountConnection({ initialAccounts }: AccountConnectionProps) {
           {accounts.map((account) => (
             <li
               key={account.id}
-              className="flex items-center justify-between rounded-lg border p-4"
+              className="flex items-center justify-between rounded-lg border border-nyx-border bg-nyx-surface p-4"
             >
               <div className="flex items-center gap-3">
                 <span
@@ -162,7 +162,7 @@ export function AccountConnection({ initialAccounts }: AccountConnectionProps) {
                   {PLATFORM_LABELS[account.platform]}
                 </span>
                 <div>
-                  <p className="text-sm font-medium">
+                  <p className="text-sm font-medium text-nyx-text">
                     {account.platformUsername ?? account.platformAccountId}
                   </p>
                   <p className={`text-xs ${STATUS_COLORS[account.status]}`}>
@@ -176,7 +176,7 @@ export function AccountConnection({ initialAccounts }: AccountConnectionProps) {
                   <button
                     onClick={() => handleRefresh(account.id)}
                     disabled={refreshing === account.id}
-                    className="rounded border px-3 py-1 text-xs hover:bg-gray-50 disabled:opacity-50"
+                    className="rounded border border-nyx-border px-3 py-1 text-xs text-nyx-text hover:bg-nyx-border disabled:opacity-50 transition-colors"
                   >
                     {refreshing === account.id ? "Refreshing..." : "Refresh"}
                   </button>
@@ -184,7 +184,7 @@ export function AccountConnection({ initialAccounts }: AccountConnectionProps) {
                 <button
                   onClick={() => handleDisconnect(account.id)}
                   disabled={disconnecting === account.id}
-                  className="rounded border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50"
+                  className="rounded border border-red-800 px-3 py-1 text-xs text-red-400 hover:bg-red-950/30 disabled:opacity-50 transition-colors"
                 >
                   {disconnecting === account.id ? "Disconnecting..." : "Disconnect"}
                 </button>
@@ -197,7 +197,7 @@ export function AccountConnection({ initialAccounts }: AccountConnectionProps) {
       {/* Connect new account */}
       {canAddMore && (
         <div>
-          <h3 className="mb-3 text-sm font-medium text-gray-700">
+          <h3 className="mb-3 text-sm font-medium text-nyx-text">
             Connect a platform
           </h3>
           <div className="flex flex-wrap gap-2">
@@ -214,8 +214,8 @@ export function AccountConnection({ initialAccounts }: AccountConnectionProps) {
                     disabled={alreadyConnected || isConnecting || connecting !== null}
                     className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
                       alreadyConnected
-                        ? "border-gray-200 bg-gray-50 text-gray-400"
-                        : "border-gray-300 hover:bg-gray-50"
+                        ? "border-nyx-border bg-nyx-surface text-nyx-muted"
+                        : "border-nyx-border hover:border-nyx-cyan/40 hover:bg-nyx-surface text-nyx-text"
                     }`}
                   >
                     {isConnecting
@@ -232,7 +232,7 @@ export function AccountConnection({ initialAccounts }: AccountConnectionProps) {
       )}
 
       {!canAddMore && (
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-nyx-muted">
           You have reached the maximum of 5 connected accounts.
         </p>
       )}

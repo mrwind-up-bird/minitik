@@ -18,10 +18,10 @@ export function StepIndicator({ currentStep }: StepIndicatorProps) {
               <div
                 className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold transition-colors ${
                   isCompleted
-                    ? "bg-violet-600 text-white"
+                    ? "bg-nyx-cyan text-nyx-midnight"
                     : isCurrent
-                      ? "bg-violet-600 text-white ring-2 ring-violet-300 dark:ring-violet-800"
-                      : "bg-neutral-200 text-neutral-500 dark:bg-neutral-700 dark:text-neutral-400"
+                      ? "bg-nyx-cyan text-nyx-midnight ring-2 ring-nyx-cyan/30"
+                      : "bg-nyx-border text-nyx-muted"
                 }`}
               >
                 {isCompleted ? (
@@ -39,10 +39,10 @@ export function StepIndicator({ currentStep }: StepIndicatorProps) {
               <span
                 className={`hidden text-xs font-medium sm:inline ${
                   isCurrent
-                    ? "text-violet-700 dark:text-violet-300"
+                    ? "text-nyx-cyan"
                     : isCompleted
-                      ? "text-neutral-700 dark:text-neutral-300"
-                      : "text-neutral-400 dark:text-neutral-500"
+                      ? "text-nyx-text"
+                      : "text-nyx-muted"
                 }`}
               >
                 {label}
@@ -52,8 +52,8 @@ export function StepIndicator({ currentStep }: StepIndicatorProps) {
               <div
                 className={`h-px w-6 sm:w-10 ${
                   step < currentStep
-                    ? "bg-violet-400"
-                    : "bg-neutral-200 dark:bg-neutral-700"
+                    ? "bg-nyx-cyan"
+                    : "bg-nyx-border"
                 }`}
               />
             )}

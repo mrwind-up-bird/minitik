@@ -13,9 +13,9 @@ export default function AppLayout({
 
       <div className="flex min-h-screen">
         {/* Desktop sidebar */}
-        <aside className="hidden md:flex md:w-56 md:flex-col md:border-r md:border-neutral-200 dark:md:border-neutral-800 md:bg-white dark:md:bg-neutral-950">
+        <aside className="hidden md:flex md:w-56 md:flex-col md:border-r md:border-nyx-border md:bg-nyx-surface">
           <div className="flex h-14 items-center px-4">
-            <span className="text-lg font-bold tracking-tight text-violet-600">
+            <span className="text-lg font-bold tracking-tight text-nyx-cyan text-glow-cyan font-mono">
               minitik
             </span>
           </div>

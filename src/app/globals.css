@@ -1,28 +1,40 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0a0a0f;
+  --foreground: #e4e4e7;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-nyx-midnight: #0a0a0f;
+  --color-nyx-surface: #111118;
+  --color-nyx-border: #1e1e2a;
+  --color-nyx-cyan: #00e5ff;
+  --color-nyx-text: #e4e4e7;
+  --color-nyx-muted: #71717a;
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* nyxCore glow utilities */
+.text-glow-cyan {
+  text-shadow: 0 0 10px rgba(0, 229, 255, 0.5), 0 0 20px rgba(0, 229, 255, 0.3);
+}
+
+.glow-cyan {
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.3), 0 0 20px rgba(0, 229, 255, 0.1);
+}
+
+.glow-cyan-sm {
+  box-shadow: 0 0 6px rgba(0, 229, 255, 0.2);
 }
 
 /* iOS safe-area padding for bottom nav */
@@ -34,7 +46,7 @@ body {
 @media (pointer: fine) {
   * {
     scrollbar-width: thin;
-    scrollbar-color: var(--foreground) transparent;
+    scrollbar-color: #1e1e2a transparent;
   }
   *::-webkit-scrollbar {
     width: 6px;
@@ -44,7 +56,10 @@ body {
     background: transparent;
   }
   *::-webkit-scrollbar-thumb {
-    background-color: color-mix(in srgb, var(--foreground) 20%, transparent);
+    background-color: #1e1e2a;
     border-radius: 3px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: #2a2a3a;
   }
 }

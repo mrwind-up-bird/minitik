@@ -22,21 +22,21 @@ function LoginForm() {
   // If NextAuth redirected here with ?verify=1, show the "check email" screen
   if (verify) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-neutral-50 dark:bg-neutral-950 px-4">
+      <div className="flex min-h-screen items-center justify-center bg-nyx-midnight px-4">
         <div className="w-full max-w-sm space-y-8">
           <div className="text-center">
-            <h1 className="text-3xl font-bold tracking-tight text-violet-600">
+            <h1 className="text-3xl font-bold tracking-tight text-nyx-cyan text-glow-cyan font-mono">
               minitik
             </h1>
-            <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
+            <p className="mt-2 text-sm text-nyx-muted">
               Check your email
             </p>
           </div>
 
           <div className="space-y-4 text-center">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-950/50">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-nyx-cyan/10">
               <svg
-                className="h-8 w-8 text-violet-600 dark:text-violet-400"
+                className="h-8 w-8 text-nyx-cyan"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -50,15 +50,15 @@ function LoginForm() {
               </svg>
             </div>
 
-            <p className="text-sm text-neutral-600 dark:text-neutral-300">
+            <p className="text-sm text-nyx-text/80">
               We sent a magic link to your email. Click the link to sign in.
             </p>
 
-            <p className="text-xs text-neutral-400 dark:text-neutral-500">
+            <p className="text-xs text-nyx-muted">
               Didn&apos;t receive it? Check spam or{" "}
               <a
                 href="/login"
-                className="text-violet-600 dark:text-violet-400 underline underline-offset-2 hover:no-underline"
+                className="text-nyx-cyan underline underline-offset-2 hover:no-underline"
               >
                 try again
               </a>
@@ -83,13 +83,13 @@ function LoginForm() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-neutral-50 dark:bg-neutral-950 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-nyx-midnight px-4">
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center">
-          <h1 className="text-3xl font-bold tracking-tight text-violet-600">
+          <h1 className="text-3xl font-bold tracking-tight text-nyx-cyan text-glow-cyan font-mono">
             minitik
           </h1>
-          <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
+          <p className="mt-2 text-sm text-nyx-muted">
             Sign in to manage your videos
           </p>
         </div>
@@ -98,7 +98,7 @@ function LoginForm() {
           {error && (
             <div
               role="alert"
-              className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 px-4 py-3 text-sm text-red-700 dark:text-red-400"
+              className="rounded-lg border border-red-800 bg-red-950/30 px-4 py-3 text-sm text-red-400"
             >
               {error}
             </div>
@@ -107,7 +107,7 @@ function LoginForm() {
           <div>
             <label
               htmlFor="email"
-              className="block text-sm font-medium text-neutral-700 dark:text-neutral-300"
+              className="block text-sm font-medium text-nyx-text/80"
             >
               Email
             </label>
@@ -120,7 +120,7 @@ function LoginForm() {
               autoFocus
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/30"
+              className="mt-1 block w-full rounded-lg border border-nyx-border bg-nyx-surface px-3 py-2 text-sm text-nyx-text placeholder-nyx-muted focus:border-nyx-cyan focus:outline-none focus:ring-1 focus:ring-nyx-cyan/30"
               placeholder="you@example.com"
             />
           </div>
@@ -128,7 +128,7 @@ function LoginForm() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="w-full rounded-lg bg-nyx-cyan px-4 py-2.5 text-sm font-medium text-nyx-midnight hover:bg-nyx-cyan/90 focus:outline-none focus:ring-1 focus:ring-nyx-cyan disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {loading ? "Sending..." : "Send magic link"}
           </button>

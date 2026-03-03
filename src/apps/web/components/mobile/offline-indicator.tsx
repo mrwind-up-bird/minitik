@@ -50,10 +50,10 @@ export function OfflineIndicator({
         "w-full px-4 py-2 flex items-center justify-between gap-3 text-sm",
         "transition-colors duration-300",
         isOffline
-          ? "bg-neutral-800 text-neutral-100"
+          ? "bg-nyx-surface text-nyx-text border-b border-nyx-border"
           : isSyncing
-          ? "bg-violet-600 text-white"
-          : "bg-amber-500 text-white",
+          ? "bg-nyx-cyan text-nyx-midnight"
+          : "bg-amber-500/20 text-amber-300 border-b border-amber-800",
       ].join(" ")}
     >
       <div className="flex items-center gap-2 min-w-0">
@@ -106,7 +106,7 @@ export function OfflineIndicator({
           {isOffline
             ? "You're offline — changes will sync when reconnected"
             : isSyncing
-            ? "Syncing…"
+            ? "Syncing..."
             : `${pendingDrafts + pendingActions} item${pendingDrafts + pendingActions !== 1 ? "s" : ""} pending sync`}
         </span>
 
@@ -123,7 +123,7 @@ export function OfflineIndicator({
         <button
           type="button"
           onClick={onSyncClick}
-          className="shrink-0 rounded-md bg-white/20 hover:bg-white/30 px-3 py-1 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-white/50"
+          className="shrink-0 rounded-md bg-white/10 hover:bg-white/20 px-3 py-1 text-xs font-medium transition-colors focus:outline-none focus:ring-1 focus:ring-white/50"
           style={{ minHeight: "44px", minWidth: "44px" }}
         >
           Sync now

@@ -63,10 +63,10 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">
+        <h1 className="text-2xl font-bold text-nyx-text">
           Welcome back, {userName}
         </h1>
-        <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+        <p className="mt-1 text-sm text-nyx-muted">
           Here&apos;s what&apos;s happening with your content.
         </p>
       </div>
@@ -77,10 +77,10 @@ export default function DashboardPage() {
           Array.from({ length: 4 }, (_, i) => (
             <div
               key={i}
-              className="animate-pulse rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-4"
+              className="animate-pulse rounded-xl border border-nyx-border bg-nyx-surface p-4"
             >
-              <div className="h-3 w-16 bg-neutral-200 dark:bg-neutral-700 rounded" />
-              <div className="mt-2 h-6 w-10 bg-neutral-200 dark:bg-neutral-700 rounded" />
+              <div className="h-3 w-16 bg-nyx-border rounded" />
+              <div className="mt-2 h-6 w-10 bg-nyx-border rounded" />
             </div>
           ))
         ) : (
@@ -132,11 +132,11 @@ export default function DashboardPage() {
 
 function StatCard({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+    <div className="rounded-xl border border-nyx-border bg-nyx-surface p-4">
+      <p className="text-xs font-medium uppercase tracking-wide text-nyx-muted font-mono">
         {label}
       </p>
-      <p className="mt-1 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+      <p className="mt-1 text-2xl font-semibold text-nyx-text">
         {value}
       </p>
     </div>
@@ -157,16 +157,16 @@ function QuickAction({
   return (
     <Link
       href={href}
-      className="group flex items-start gap-3 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-4 transition-colors hover:border-violet-400 hover:bg-violet-50/50 dark:hover:bg-violet-950/20"
+      className="group flex items-start gap-3 rounded-xl border border-nyx-border bg-nyx-surface p-4 transition-all hover:border-nyx-cyan/40 hover:glow-cyan-sm"
     >
-      <div className="shrink-0 rounded-lg bg-violet-100 dark:bg-violet-950/50 p-2 text-violet-600 dark:text-violet-400">
+      <div className="shrink-0 rounded-lg bg-nyx-cyan/10 p-2 text-nyx-cyan">
         {icon}
       </div>
       <div>
-        <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100 group-hover:text-violet-700 dark:group-hover:text-violet-300">
+        <p className="text-sm font-medium text-nyx-text group-hover:text-nyx-cyan transition-colors">
           {title}
         </p>
-        <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
+        <p className="mt-0.5 text-xs text-nyx-muted">
           {description}
         </p>
       </div>

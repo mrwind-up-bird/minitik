@@ -137,10 +137,10 @@ export function UploadZone({ onFilesSelected, disabled = false, multiple = false
           "relative flex flex-col items-center justify-center",
           "w-full min-h-48 rounded-2xl border-2 border-dashed",
           "transition-colors duration-200 cursor-pointer select-none",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500",
+          "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-nyx-cyan",
           isDragging
-            ? "border-violet-400 bg-violet-50 dark:bg-violet-950/30"
-            : "border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900 hover:border-violet-400 hover:bg-violet-50/50 dark:hover:bg-violet-950/20",
+            ? "border-nyx-cyan bg-nyx-cyan/5"
+            : "border-nyx-border bg-nyx-surface hover:border-nyx-cyan/40 hover:bg-nyx-cyan/5",
           disabled ? "opacity-50 cursor-not-allowed" : "",
         ]
           .filter(Boolean)
@@ -162,14 +162,14 @@ export function UploadZone({ onFilesSelected, disabled = false, multiple = false
           className={[
             "mb-4 rounded-full p-4 transition-colors",
             isDragging
-              ? "bg-violet-100 dark:bg-violet-900/50"
-              : "bg-neutral-100 dark:bg-neutral-800",
+              ? "bg-nyx-cyan/10"
+              : "bg-nyx-border/50",
           ].join(" ")}
         >
           <svg
             className={[
               "h-8 w-8",
-              isDragging ? "text-violet-500" : "text-neutral-400",
+              isDragging ? "text-nyx-cyan" : "text-nyx-muted",
             ].join(" ")}
             viewBox="0 0 24 24"
             fill="none"
@@ -186,17 +186,17 @@ export function UploadZone({ onFilesSelected, disabled = false, multiple = false
         </div>
 
         {isDragging ? (
-          <p className="text-base font-medium text-violet-600 dark:text-violet-400">
+          <p className="text-base font-medium text-nyx-cyan">
             Drop to upload
           </p>
         ) : (
           <>
-            <p className="mb-1 text-base font-medium text-neutral-700 dark:text-neutral-200">
+            <p className="mb-1 text-base font-medium text-nyx-text">
               Drag & drop a video here
             </p>
-            <p className="text-sm text-neutral-500 dark:text-neutral-400">
+            <p className="text-sm text-nyx-muted">
               or{" "}
-              <span className="text-violet-600 dark:text-violet-400 underline underline-offset-2">
+              <span className="text-nyx-cyan underline underline-offset-2">
                 browse files
               </span>
             </p>
@@ -207,12 +207,12 @@ export function UploadZone({ onFilesSelected, disabled = false, multiple = false
           {["MP4", "MOV", "WebM"].map((fmt) => (
             <span
               key={fmt}
-              className="rounded-full bg-neutral-100 dark:bg-neutral-800 px-3 py-0.5 text-xs font-medium text-neutral-600 dark:text-neutral-300"
+              className="rounded-full bg-nyx-border/50 px-3 py-0.5 text-xs font-medium text-nyx-muted font-mono"
             >
               {fmt}
             </span>
           ))}
-          <span className="rounded-full bg-neutral-100 dark:bg-neutral-800 px-3 py-0.5 text-xs font-medium text-neutral-600 dark:text-neutral-300">
+          <span className="rounded-full bg-nyx-border/50 px-3 py-0.5 text-xs font-medium text-nyx-muted font-mono">
             Up to 1 GB
           </span>
         </div>
@@ -227,7 +227,7 @@ export function UploadZone({ onFilesSelected, disabled = false, multiple = false
           {errors.map((err, i) => (
             <li
               key={i}
-              className="flex items-start gap-2 rounded-lg bg-red-50 dark:bg-red-950/30 px-3 py-2 text-sm text-red-700 dark:text-red-400"
+              className="flex items-start gap-2 rounded-lg bg-red-950/30 px-3 py-2 text-sm text-red-400"
             >
               <svg
                 className="mt-0.5 h-4 w-4 flex-shrink-0"

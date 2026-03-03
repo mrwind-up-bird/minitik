@@ -83,13 +83,13 @@ function UploadFAB({ active }: { active: boolean }) {
       className={[
         "flex h-12 w-12 items-center justify-center rounded-full shadow-lg transition-all duration-200",
         active
-          ? "bg-violet-700 ring-2 ring-violet-400 ring-offset-2 ring-offset-white dark:ring-offset-neutral-950"
-          : "bg-violet-600",
+          ? "bg-nyx-cyan ring-2 ring-nyx-cyan/40 ring-offset-2 ring-offset-nyx-midnight glow-cyan"
+          : "bg-nyx-cyan/90",
       ].join(" ")}
       aria-hidden="true"
     >
       <svg
-        className="h-6 w-6 text-white"
+        className="h-6 w-6 text-nyx-midnight"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -150,8 +150,8 @@ export function MobileNav() {
       aria-label="Main navigation"
       className={[
         "fixed bottom-0 inset-x-0 z-40",
-        "border-t border-neutral-200 dark:border-neutral-800",
-        "bg-white/95 dark:bg-neutral-950/95 backdrop-blur-sm",
+        "border-t border-nyx-border",
+        "bg-nyx-midnight/95 backdrop-blur-sm",
         // Safe area inset for phones with home indicator
         "pb-safe",
       ].join(" ")}
@@ -180,9 +180,9 @@ export function MobileNav() {
                   "min-h-[44px] min-w-[44px]",
                   isUpload ? "-mt-5" : "pt-1",
                   isActive && !isUpload
-                    ? "text-violet-600 dark:text-violet-400"
+                    ? "text-nyx-cyan"
                     : !isUpload
-                    ? "text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200"
+                    ? "text-nyx-muted hover:text-nyx-text"
                     : "",
                 ]
                   .filter(Boolean)
@@ -195,8 +195,8 @@ export function MobileNav() {
                     className={[
                       "text-[10px] font-medium leading-none",
                       isActive
-                        ? "text-violet-600 dark:text-violet-400"
-                        : "text-neutral-500 dark:text-neutral-400",
+                        ? "text-nyx-cyan"
+                        : "text-nyx-muted",
                     ].join(" ")}
                   >
                     {item.label}
@@ -291,8 +291,8 @@ export function SidebarNav() {
               // 44px touch target
               "min-h-[44px]",
               isActive
-                ? "bg-violet-100 dark:bg-violet-950/50 text-violet-700 dark:text-violet-300"
-                : "text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-900 dark:hover:text-neutral-100",
+                ? "bg-nyx-cyan/10 text-nyx-cyan"
+                : "text-nyx-muted hover:bg-nyx-border/50 hover:text-nyx-text",
             ].join(" ")}
           >
             {isActive ? item.activeIcon : item.icon}

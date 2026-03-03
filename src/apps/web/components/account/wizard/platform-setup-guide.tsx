@@ -82,16 +82,16 @@ export function PlatformSetupGuide({ provider, onContinue, onBack }: SetupGuideP
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
+        <h2 className="text-lg font-semibold text-nyx-text">
           Set up your {provider === "tiktok" ? "TikTok" : provider === "instagram" ? "Instagram" : "YouTube"} developer app
         </h2>
-        <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+        <p className="mt-1 text-sm text-nyx-muted">
           Follow these steps in the{" "}
           <a
             href={guide.portalUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="font-medium text-violet-600 hover:text-violet-700 dark:text-violet-400 dark:hover:text-violet-300"
+            className="font-medium text-nyx-cyan hover:text-nyx-cyan/80"
           >
             {guide.portalName} &nearr;
           </a>
@@ -102,14 +102,14 @@ export function PlatformSetupGuide({ provider, onContinue, onBack }: SetupGuideP
       <ol className="space-y-4">
         {guide.steps.map((step, i) => (
           <li key={i} className="flex gap-3">
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-semibold text-violet-700 dark:bg-violet-950/50 dark:text-violet-400">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-nyx-cyan/10 text-xs font-semibold text-nyx-cyan">
               {i + 1}
             </span>
             <div>
-              <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+              <p className="text-sm font-medium text-nyx-text">
                 {step.title}
               </p>
-              <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
+              <p className="mt-0.5 text-xs text-nyx-muted">
                 {step.detail}
               </p>
             </div>
@@ -118,17 +118,17 @@ export function PlatformSetupGuide({ provider, onContinue, onBack }: SetupGuideP
       </ol>
 
       {/* Redirect URI */}
-      <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800/50">
-        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+      <div className="rounded-lg border border-nyx-border bg-nyx-midnight p-4">
+        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-nyx-muted font-mono">
           Redirect URI
         </p>
         <div className="flex items-center gap-2">
-          <code className="flex-1 overflow-x-auto rounded bg-white px-3 py-1.5 text-xs text-neutral-800 dark:bg-neutral-900 dark:text-neutral-200">
+          <code className="flex-1 overflow-x-auto rounded bg-nyx-surface px-3 py-1.5 text-xs text-nyx-text font-mono">
             {redirectUri}
           </code>
           <button
             onClick={handleCopy}
-            className="shrink-0 rounded border border-neutral-300 px-2.5 py-1.5 text-xs font-medium text-neutral-600 transition-colors hover:bg-neutral-100 dark:border-neutral-600 dark:text-neutral-400 dark:hover:bg-neutral-700"
+            className="shrink-0 rounded border border-nyx-border px-2.5 py-1.5 text-xs font-medium text-nyx-muted transition-colors hover:bg-nyx-surface hover:text-nyx-text"
           >
             {copied ? "Copied!" : "Copy"}
           </button>
@@ -136,15 +136,15 @@ export function PlatformSetupGuide({ provider, onContinue, onBack }: SetupGuideP
       </div>
 
       {/* Required scopes */}
-      <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800/50">
-        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+      <div className="rounded-lg border border-nyx-border bg-nyx-midnight p-4">
+        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-nyx-muted font-mono">
           Required Scopes
         </p>
         <div className="flex flex-wrap gap-1.5">
           {guide.scopes.map((scope) => (
             <code
               key={scope}
-              className="rounded bg-white px-2 py-0.5 text-xs text-neutral-700 dark:bg-neutral-900 dark:text-neutral-300"
+              className="rounded bg-nyx-surface px-2 py-0.5 text-xs text-nyx-text font-mono"
             >
               {scope}
             </code>
@@ -153,8 +153,8 @@ export function PlatformSetupGuide({ provider, onContinue, onBack }: SetupGuideP
       </div>
 
       {/* Tip */}
-      <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-800 dark:bg-amber-950/30">
-        <p className="text-sm text-amber-700 dark:text-amber-400">
+      <div className="rounded-lg border border-amber-800 bg-amber-950/30 px-4 py-3">
+        <p className="text-sm text-amber-400">
           <span className="font-medium">Tip:</span> {guide.tip}
         </p>
       </div>
@@ -163,13 +163,13 @@ export function PlatformSetupGuide({ provider, onContinue, onBack }: SetupGuideP
       <div className="flex items-center justify-between pt-2">
         <button
           onClick={onBack}
-          className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-600 dark:text-neutral-300 dark:hover:bg-neutral-800"
+          className="rounded-lg border border-nyx-border px-4 py-2 text-sm font-medium text-nyx-text transition-colors hover:bg-nyx-surface"
         >
           Back
         </button>
         <button
           onClick={onContinue}
-          className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-violet-700"
+          className="rounded-lg bg-nyx-cyan px-4 py-2 text-sm font-medium text-nyx-midnight transition-colors hover:bg-nyx-cyan/90"
         >
           I&apos;ve completed setup, continue
         </button>

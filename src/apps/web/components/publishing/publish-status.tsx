@@ -46,10 +46,10 @@ const PLATFORM_LABELS: Record<Platform, string> = {
 };
 
 const STATUS_COLORS: Record<PlatformPublicationState["status"], string> = {
-  queued: "text-gray-500",
-  publishing: "text-blue-600",
-  success: "text-green-600",
-  failed: "text-red-600",
+  queued: "text-nyx-muted",
+  publishing: "text-nyx-cyan",
+  success: "text-emerald-400",
+  failed: "text-red-400",
 };
 
 const STATUS_LABELS: Record<PlatformPublicationState["status"], string> = {
@@ -188,43 +188,43 @@ export function PublishStatus({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold">Publishing Status</h3>
+        <h3 className="font-semibold text-nyx-text">Publishing Status</h3>
         {isLive && (
-          <span className="flex items-center gap-1.5 text-xs text-blue-600">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-blue-500" />
+          <span className="flex items-center gap-1.5 text-xs text-nyx-cyan">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-nyx-cyan" />
             Live
           </span>
         )}
       </div>
 
       {platforms.length === 0 && (
-        <p className="text-sm text-gray-500">Waiting for publishing to start…</p>
+        <p className="text-sm text-nyx-muted">Waiting for publishing to start...</p>
       )}
 
       <ul className="space-y-2">
         {platforms.map((p) => (
           <li
             key={p.publicationId}
-            className="flex items-start justify-between rounded-lg border p-3"
+            className="flex items-start justify-between rounded-lg border border-nyx-border bg-nyx-surface p-3"
           >
             <div className="flex items-center gap-2">
               {p.status === "publishing" && (
-                <span className="h-3 w-3 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+                <span className="h-3 w-3 animate-spin rounded-full border-2 border-nyx-cyan border-t-transparent" />
               )}
-              <span className="text-sm font-medium">{PLATFORM_LABELS[p.platform]}</span>
+              <span className="text-sm font-medium text-nyx-text">{PLATFORM_LABELS[p.platform]}</span>
             </div>
             <div className="text-right">
               <p className={`text-xs font-medium ${STATUS_COLORS[p.status]}`}>
                 {STATUS_LABELS[p.status]}
               </p>
               {p.status === "success" && p.platformPostId && (
-                <p className="text-xs text-gray-400">ID: {p.platformPostId}</p>
+                <p className="text-xs text-nyx-muted font-mono">ID: {p.platformPostId}</p>
               )}
               {p.status === "success" && p.durationMs && (
-                <p className="text-xs text-gray-400">{(p.durationMs / 1000).toFixed(1)}s</p>
+                <p className="text-xs text-nyx-muted">{(p.durationMs / 1000).toFixed(1)}s</p>
               )}
               {p.status === "failed" && p.error && (
-                <p className="max-w-48 text-xs text-red-500">{p.error}</p>
+                <p className="max-w-48 text-xs text-red-400">{p.error}</p>
               )}
             </div>
           </li>
@@ -235,10 +235,10 @@ export function PublishStatus({
         <div
           className={`rounded-lg border p-3 text-sm font-medium ${
             outcome === "success"
-              ? "border-green-200 bg-green-50 text-green-700"
+              ? "border-emerald-800 bg-emerald-950/30 text-emerald-400"
               : outcome === "partial"
-                ? "border-yellow-200 bg-yellow-50 text-yellow-700"
-                : "border-red-200 bg-red-50 text-red-700"
+                ? "border-yellow-800 bg-yellow-950/30 text-yellow-400"
+                : "border-red-800 bg-red-950/30 text-red-400"
           }`}
         >
           {outcome === "success" && "All platforms published successfully."}

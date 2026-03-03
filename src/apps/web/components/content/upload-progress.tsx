@@ -63,13 +63,13 @@ function ProgressBar({ percent, status, chunks }: ProgressBarProps) {
       : status === "error"
       ? "bg-red-500"
       : status === "aborted"
-      ? "bg-neutral-400"
-      : "bg-violet-500";
+      ? "bg-nyx-muted"
+      : "bg-nyx-cyan";
 
   return (
     <div className="w-full">
       {/* Chunk indicator row */}
-      <div className="mb-1 flex justify-between text-xs text-neutral-500 dark:text-neutral-400">
+      <div className="mb-1 flex justify-between text-xs text-nyx-muted font-mono">
         <span>
           Chunks: {chunks.completed}/{chunks.total}
         </span>
@@ -78,7 +78,7 @@ function ProgressBar({ percent, status, chunks }: ProgressBarProps) {
 
       {/* Main progress bar */}
       <div
-        className="h-2 w-full overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-700"
+        className="h-2 w-full overflow-hidden rounded-full bg-nyx-border"
         role="progressbar"
         aria-valuenow={percent}
         aria-valuemin={0}
@@ -101,7 +101,7 @@ function ProgressBar({ percent, status, chunks }: ProgressBarProps) {
                 "h-1.5 w-1.5 rounded-full transition-colors duration-200",
                 i < chunks.completed
                   ? barColor
-                  : "bg-neutral-200 dark:bg-neutral-700",
+                  : "bg-nyx-border",
               ].join(" ")}
               aria-hidden="true"
             />
@@ -137,21 +137,21 @@ export function UploadProgress({
   };
 
   const statusColor: Record<UploadStatus, string> = {
-    idle: "text-neutral-500",
-    uploading: "text-violet-600 dark:text-violet-400",
-    processing: "text-amber-600 dark:text-amber-400",
-    complete: "text-emerald-600 dark:text-emerald-400",
-    error: "text-red-600 dark:text-red-400",
-    aborted: "text-neutral-500",
+    idle: "text-nyx-muted",
+    uploading: "text-nyx-cyan",
+    processing: "text-amber-400",
+    complete: "text-emerald-400",
+    error: "text-red-400",
+    aborted: "text-nyx-muted",
   };
 
   return (
-    <div className="w-full rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-4 shadow-sm">
+    <div className="w-full rounded-xl border border-nyx-border bg-nyx-surface p-4">
       {/* Header row */}
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p
-            className="truncate text-sm font-medium text-neutral-800 dark:text-neutral-100"
+            className="truncate text-sm font-medium text-nyx-text"
             title={filename}
           >
             {filename}
@@ -166,7 +166,7 @@ export function UploadProgress({
             <button
               type="button"
               onClick={onCancel}
-              className="rounded-md px-2 py-1 text-xs text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors"
+              className="rounded-md px-2 py-1 text-xs text-nyx-muted hover:bg-nyx-border hover:text-nyx-text transition-colors"
             >
               Cancel
             </button>
@@ -175,14 +175,14 @@ export function UploadProgress({
             <button
               type="button"
               onClick={onRetry}
-              className="rounded-md px-2 py-1 text-xs text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/30 transition-colors"
+              className="rounded-md px-2 py-1 text-xs text-nyx-cyan hover:bg-nyx-cyan/10 transition-colors"
             >
               Retry
             </button>
           )}
           {status === "complete" && (
             <svg
-              className="h-4 w-4 text-emerald-500"
+              className="h-4 w-4 text-emerald-400"
               viewBox="0 0 20 20"
               fill="currentColor"
               aria-hidden="true"
@@ -204,7 +204,7 @@ export function UploadProgress({
 
       {/* Stats row */}
       {(status === "uploading" || status === "processing") && (
-        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-500 dark:text-neutral-400">
+        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-nyx-muted font-mono">
           <span>
             {formatBytes(bytesUploaded)} / {formatBytes(totalBytes)}
           </span>
@@ -218,7 +218,7 @@ export function UploadProgress({
       )}
 
       {status === "complete" && (
-        <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
+        <p className="mt-2 text-xs text-nyx-muted">
           {formatBytes(totalBytes)} uploaded
         </p>
       )}
@@ -227,7 +227,7 @@ export function UploadProgress({
       {status === "error" && error && (
         <p
           role="alert"
-          className="mt-2 text-xs text-red-600 dark:text-red-400"
+          className="mt-2 text-xs text-red-400"
         >
           {error}
         </p>
